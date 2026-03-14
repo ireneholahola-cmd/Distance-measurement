@@ -1,0 +1,1846 @@
+卷 ppen 的文件夹 PATH 列表
+卷序列号为 3CC6-C2C8
+P:.
+│  carfellow.mp4
+│  carfellow.txt
+│  cutin.mp4
+│  cutin.txt
+│  detect.py
+│  detect_3d.py
+│  distance.txt
+│  Dockerfile
+│  document.docx
+│  hubconf.py
+│  internsection1.txt
+│  intersection1.mp4
+│  intersection1.txt
+│  intersection2.mp4
+│  intersection2.txt
+│  kerman.py
+│  lanechange.mp4
+│  lanechange.txt
+│  LICENSE
+│  list
+│  picture.py
+│  plotpicture.py
+│  prepare_data.py
+│  README.md
+│  realsensedetect.py
+│  requirements.txt
+│  run.py
+│  save_videos.mp4
+│  speed.txt
+│  track.txt
+│  train.py
+│  ui.py
+│  vehicle_info.txt
+│  yolov10m.pt
+│  yolov10s.pt
+│  yolov5s.pt
+│  多目标.py
+│  混淆矩阵.py
+│  缺失部分.mp4
+│  缺失部分.txt
+│  
+├─.idea
+│  │  .gitignore
+│  │  .name
+│  │  misc.xml
+│  │  modules.xml
+│  │  vcs.xml
+│  │  workspace.xml
+│  │  yolov5-main.iml
+│  │  yolov8-main.iml
+│  │  
+│  └─inspectionProfiles
+│          profiles_settings.xml
+│          Project_Default.xml
+│          
+├─config
+│      camera_params.yaml
+│      
+├─counter
+│  │  counter_frame.py
+│  │  draw_counter.py
+│  │  
+│  └─__pycache__
+│          counter_frame.cpython-37.pyc
+│          draw_counter.cpython-312.pyc
+│          draw_counter.cpython-36.pyc
+│          draw_counter.cpython-37.pyc
+│          draw_counter.cpython-38.pyc
+│          draw_counter.cpython-39.pyc
+│          
+├─data
+│  │  argoverse_hd.yaml
+│  │  coco.yaml
+│  │  coco128.yaml
+│  │  hyp.finetune.yaml
+│  │  hyp.scratch.yaml
+│  │  voc.yaml
+│  │  
+│  ├─images
+│  │      000295.jpg
+│  │      bus.jpg
+│  │      zidane.jpg
+│  │      
+│  ├─scripts
+│  │      get_argoverse_hd.sh
+│  │      get_coco.sh
+│  │      get_voc.sh
+│  │      
+│  └─videos
+├─deep_sort
+│  │  .gitignore
+│  │  LICENSE
+│  │  ped_det_server.py
+│  │  README.md
+│  │  yolov10_deepsort.py
+│  │  yolov10_deepsort_eval.py
+│  │  
+│  ├─configs
+│  │      deep_sort.yaml
+│  │      yolov3.yaml
+│  │      yolov3_tiny.yaml
+│  │      
+│  ├─DeepSORT_Monet_traffic
+│  │  │  background.png
+│  │  │  banmaxian.txt
+│  │  │  cascade.xml
+│  │  │  conda-cpu.yml
+│  │  │  conda-gpu.yml
+│  │  │  config.js
+│  │  │  detection.txt
+│  │  │  dingwei.py
+│  │  │  load_weights.py
+│  │  │  LPR.py
+│  │  │  Monet_tracker.py
+│  │  │  object_tracker.py
+│  │  │  out.png
+│  │  │  README.md
+│  │  │  requirements-gpu.txt
+│  │  │  requirements.txt
+│  │  │  resize.py
+│  │  │  shixian.txt
+│  │  │  _gitignore
+│  │  │  提取背景.py
+│  │  │  车道线标定.py
+│  │  │  
+│  │  ├─data
+│  │  │  ├─fonts
+│  │  │  │      futur.ttf
+│  │  │  │      
+│  │  │  ├─labels
+│  │  │  │      coco.names
+│  │  │  │      
+│  │  │  ├─output
+│  │  │  │      image.png
+│  │  │  │      
+│  │  │  ├─photo
+│  │  │  │      1.png
+│  │  │  │      
+│  │  │  └─video
+│  │  │          results.avi
+│  │  │          result_out.avi
+│  │  │          test.mp4
+│  │  │          
+│  │  ├─deep_sort
+│  │  │  │  detection.py
+│  │  │  │  iou_matching.py
+│  │  │  │  kalman_filter.py
+│  │  │  │  linear_assignment.py
+│  │  │  │  nn_matching.py
+│  │  │  │  preprocessing.py
+│  │  │  │  track.py
+│  │  │  │  tracker.py
+│  │  │  │  __init__.py
+│  │  │  │  
+│  │  │  └─__pycache__
+│  │  │          detection.cpython-36.pyc
+│  │  │          detection.cpython-37.pyc
+│  │  │          iou_matching.cpython-36.pyc
+│  │  │          iou_matching.cpython-37.pyc
+│  │  │          kalman_filter.cpython-36.pyc
+│  │  │          kalman_filter.cpython-37.pyc
+│  │  │          linear_assignment.cpython-36.pyc
+│  │  │          linear_assignment.cpython-37.pyc
+│  │  │          nn_matching.cpython-36.pyc
+│  │  │          nn_matching.cpython-37.pyc
+│  │  │          preprocessing.cpython-36.pyc
+│  │  │          preprocessing.cpython-37.pyc
+│  │  │          track.cpython-36.pyc
+│  │  │          track.cpython-37.pyc
+│  │  │          tracker.cpython-36.pyc
+│  │  │          tracker.cpython-37.pyc
+│  │  │          __init__.cpython-36.pyc
+│  │  │          __init__.cpython-37.pyc
+│  │  │          
+│  │  ├─model_data
+│  │  │      coco_classes.txt
+│  │  │      DeepSORT.pdf
+│  │  │      DeepSORT.png
+│  │  │      mars-small128.pb
+│  │  │      voc_classes.txt
+│  │  │      yolo_anchors.txt
+│  │  │      
+│  │  ├─simsunttc
+│  │  │      simsun.ttc
+│  │  │      
+│  │  ├─tools
+│  │  │  │  freeze_model.py
+│  │  │  │  generate_detections.py
+│  │  │  │  
+│  │  │  └─__pycache__
+│  │  │          generate_detections.cpython-36.pyc
+│  │  │          generate_detections.cpython-37.pyc
+│  │  │          
+│  │  ├─weights
+│  │  │      _gitkeep
+│  │  │      
+│  │  ├─yolov3_tf2
+│  │  │  │  banmaxian.txt
+│  │  │  │  batch_norm.py
+│  │  │  │  dataset.py
+│  │  │  │  models.py
+│  │  │  │  shixian.txt
+│  │  │  │  utils.py
+│  │  │  │  
+│  │  │  └─__pycache__
+│  │  │          batch_norm.cpython-36.pyc
+│  │  │          batch_norm.cpython-37.pyc
+│  │  │          dataset.cpython-36.pyc
+│  │  │          dataset.cpython-37.pyc
+│  │  │          models.cpython-36.pyc
+│  │  │          models.cpython-37.pyc
+│  │  │          utils.cpython-36.pyc
+│  │  │          utils.cpython-37.pyc
+│  │  │          
+│  │  └─_idea
+│  │      │  misc.xml
+│  │      │  modules.xml
+│  │      │  Monet_traffic.iml
+│  │      │  other.xml
+│  │      │  workspace.xml
+│  │      │  _gitignore
+│  │      │  _name
+│  │      │  
+│  │      └─inspectionProfiles
+│  │              profiles_settings.xml
+│  │              Project_Default.xml
+│  │              
+│  ├─deep_sort
+│  │  │  deep_sort.py
+│  │  │  README.md
+│  │  │  __init__.py
+│  │  │  
+│  │  ├─deep
+│  │  │  │  evaluate.py
+│  │  │  │  feature_extractor.py
+│  │  │  │  model.py
+│  │  │  │  original_model.py
+│  │  │  │  test.py
+│  │  │  │  train.jpg
+│  │  │  │  train.py
+│  │  │  │  __init__.py
+│  │  │  │  
+│  │  │  ├─checkpoint
+│  │  │  │      .gitkeep
+│  │  │  │      ckpt.t7
+│  │  │  │      
+│  │  │  └─__pycache__
+│  │  │          feature_extractor.cpython-312.pyc
+│  │  │          feature_extractor.cpython-36.pyc
+│  │  │          feature_extractor.cpython-37.pyc
+│  │  │          feature_extractor.cpython-38.pyc
+│  │  │          feature_extractor.cpython-39.pyc
+│  │  │          model.cpython-312.pyc
+│  │  │          model.cpython-36.pyc
+│  │  │          model.cpython-37.pyc
+│  │  │          model.cpython-38.pyc
+│  │  │          model.cpython-39.pyc
+│  │  │          __init__.cpython-312.pyc
+│  │  │          __init__.cpython-36.pyc
+│  │  │          __init__.cpython-37.pyc
+│  │  │          __init__.cpython-38.pyc
+│  │  │          __init__.cpython-39.pyc
+│  │  │          
+│  │  ├─sort
+│  │  │  │  detection.py
+│  │  │  │  iou_matching.py
+│  │  │  │  kalman_filter.py
+│  │  │  │  linear_assignment.py
+│  │  │  │  nn_matching.py
+│  │  │  │  preprocessing.py
+│  │  │  │  track.py
+│  │  │  │  tracker.py
+│  │  │  │  __init__.py
+│  │  │  │  
+│  │  │  └─__pycache__
+│  │  │          detection.cpython-312.pyc
+│  │  │          detection.cpython-36.pyc
+│  │  │          detection.cpython-37.pyc
+│  │  │          detection.cpython-38.pyc
+│  │  │          detection.cpython-39.pyc
+│  │  │          iou_matching.cpython-312.pyc
+│  │  │          iou_matching.cpython-36.pyc
+│  │  │          iou_matching.cpython-37.pyc
+│  │  │          iou_matching.cpython-38.pyc
+│  │  │          iou_matching.cpython-39.pyc
+│  │  │          kalman_filter.cpython-312.pyc
+│  │  │          kalman_filter.cpython-36.pyc
+│  │  │          kalman_filter.cpython-37.pyc
+│  │  │          kalman_filter.cpython-38.pyc
+│  │  │          kalman_filter.cpython-39.pyc
+│  │  │          linear_assignment.cpython-312.pyc
+│  │  │          linear_assignment.cpython-36.pyc
+│  │  │          linear_assignment.cpython-37.pyc
+│  │  │          linear_assignment.cpython-38.pyc
+│  │  │          linear_assignment.cpython-39.pyc
+│  │  │          nn_matching.cpython-312.pyc
+│  │  │          nn_matching.cpython-36.pyc
+│  │  │          nn_matching.cpython-37.pyc
+│  │  │          nn_matching.cpython-38.pyc
+│  │  │          nn_matching.cpython-39.pyc
+│  │  │          preprocessing.cpython-312.pyc
+│  │  │          preprocessing.cpython-36.pyc
+│  │  │          preprocessing.cpython-37.pyc
+│  │  │          preprocessing.cpython-38.pyc
+│  │  │          preprocessing.cpython-39.pyc
+│  │  │          track.cpython-312.pyc
+│  │  │          track.cpython-36.pyc
+│  │  │          track.cpython-37.pyc
+│  │  │          track.cpython-38.pyc
+│  │  │          track.cpython-39.pyc
+│  │  │          tracker.cpython-312.pyc
+│  │  │          tracker.cpython-36.pyc
+│  │  │          tracker.cpython-37.pyc
+│  │  │          tracker.cpython-38.pyc
+│  │  │          tracker.cpython-39.pyc
+│  │  │          __init__.cpython-312.pyc
+│  │  │          __init__.cpython-36.pyc
+│  │  │          __init__.cpython-37.pyc
+│  │  │          __init__.cpython-38.pyc
+│  │  │          __init__.cpython-39.pyc
+│  │  │          
+│  │  └─__pycache__
+│  │          deep_sort.cpython-312.pyc
+│  │          deep_sort.cpython-36.pyc
+│  │          deep_sort.cpython-37.pyc
+│  │          deep_sort.cpython-38.pyc
+│  │          deep_sort.cpython-39.pyc
+│  │          __init__.cpython-312.pyc
+│  │          __init__.cpython-36.pyc
+│  │          __init__.cpython-37.pyc
+│  │          __init__.cpython-38.pyc
+│  │          __init__.cpython-39.pyc
+│  │          
+│  ├─demo
+│  │      1.jpg
+│  │      2.jpg
+│  │      demo.gif
+│  │      
+│  ├─detector
+│  │  │  __init__.py
+│  │  │  
+│  │  └─YOLOv3
+│  │      │  cfg.py
+│  │      │  darknet.py
+│  │      │  detect.py
+│  │      │  detector.py
+│  │      │  README.md
+│  │      │  region_layer.py
+│  │      │  yolo_layer.py
+│  │      │  yolo_utils.py
+│  │      │  __init__.py
+│  │      │  
+│  │      ├─cfg
+│  │      │      coco.data
+│  │      │      coco.names
+│  │      │      darknet19_448.cfg
+│  │      │      tiny-yolo-voc.cfg
+│  │      │      tiny-yolo.cfg
+│  │      │      voc.data
+│  │      │      voc.names
+│  │      │      voc_gaotie.data
+│  │      │      yolo-voc.cfg
+│  │      │      yolo.cfg
+│  │      │      yolov3-tiny.cfg
+│  │      │      yolo_v3.cfg
+│  │      │      
+│  │      ├─demo
+│  │      │  │  004545.jpg
+│  │      │  │  
+│  │      │  └─results
+│  │      │          004545.jpg
+│  │      │          
+│  │      ├─nms
+│  │      │  │  build.sh
+│  │      │  │  nms.py
+│  │      │  │  python_nms.py
+│  │      │  │  __init__.py
+│  │      │  │  
+│  │      │  └─ext
+│  │      │      │  build.py
+│  │      │      │  nms.h
+│  │      │      │  vision.cpp
+│  │      │      │  __init__.py
+│  │      │      │  
+│  │      │      ├─cpu
+│  │      │      │      nms_cpu.cpp
+│  │      │      │      vision.h
+│  │      │      │      
+│  │      │      └─cuda
+│  │      │              nms.cu
+│  │      │              vision.h
+│  │      │              
+│  │      └─weight
+│  │              .gitkeep
+│  │              
+│  ├─scripts
+│  │      yolov3_deepsort.sh
+│  │      yolov3_tiny_deepsort.sh
+│  │      
+│  ├─utils
+│  │  │  asserts.py
+│  │  │  draw.py
+│  │  │  evaluation.py
+│  │  │  io.py
+│  │  │  json_logger.py
+│  │  │  log.py
+│  │  │  parser.py
+│  │  │  tools.py
+│  │  │  __init__.py
+│  │  │  
+│  │  └─__pycache__
+│  │          parser.cpython-312.pyc
+│  │          parser.cpython-36.pyc
+│  │          parser.cpython-37.pyc
+│  │          parser.cpython-38.pyc
+│  │          parser.cpython-39.pyc
+│  │          __init__.cpython-312.pyc
+│  │          __init__.cpython-36.pyc
+│  │          __init__.cpython-37.pyc
+│  │          __init__.cpython-38.pyc
+│  │          __init__.cpython-39.pyc
+│  │          
+│  └─webserver
+│      │  .env
+│      │  readme.md
+│      │  rtsp_threaded_tracker.py
+│      │  rtsp_webserver.py
+│      │  server_cfg.py
+│      │  __init__.py
+│      │  
+│      ├─config
+│      │      config.py
+│      │      
+│      ├─images
+│      │      arc.png
+│      │      request.png
+│      │      
+│      └─templates
+│              index.html
+│              
+├─models
+│  │  common.py
+│  │  experimental.py
+│  │  export.py
+│  │  yolo.py
+│  │  yolov8l.yaml
+│  │  yolov8m.yaml
+│  │  yolov8s.yaml
+│  │  yolov8s_hat.yaml
+│  │  yolov8x.yaml
+│  │  __init__.py
+│  │  
+│  ├─hub
+│  │      anchors.yaml
+│  │      yolov3-spp.yaml
+│  │      yolov3-tiny.yaml
+│  │      yolov3.yaml
+│  │      yolov5-fpn.yaml
+│  │      yolov5-p2.yaml
+│  │      yolov5-p6.yaml
+│  │      yolov5-p7.yaml
+│  │      yolov5-panet.yaml
+│  │      yolov5l6.yaml
+│  │      yolov5m6.yaml
+│  │      yolov5s-transformer.yaml
+│  │      yolov5s6.yaml
+│  │      yolov5x6.yaml
+│  │      
+│  ├─yolov10
+│  │      card.py
+│  │      model.py
+│  │      predict.py
+│  │      train.py
+│  │      val.py
+│  │      __init__.py
+│  │      
+│  └─__pycache__
+│          common.cpython-312.pyc
+│          common.cpython-36.pyc
+│          common.cpython-37.pyc
+│          common.cpython-38.pyc
+│          common.cpython-39.pyc
+│          experimental.cpython-312.pyc
+│          experimental.cpython-36.pyc
+│          experimental.cpython-37.pyc
+│          experimental.cpython-38.pyc
+│          experimental.cpython-39.pyc
+│          yolo.cpython-312.pyc
+│          yolo.cpython-36.pyc
+│          yolo.cpython-37.pyc
+│          yolo.cpython-38.pyc
+│          yolo.cpython-39.pyc
+│          __init__.cpython-312.pyc
+│          __init__.cpython-36.pyc
+│          __init__.cpython-37.pyc
+│          __init__.cpython-38.pyc
+│          __init__.cpython-39.pyc
+│          
+├─path
+│  └─to
+│      └─your
+│          └─yolo
+├─runs
+│  ├─detect
+│  │  ├─exp
+│  │  │      行车记录仪视频.mp4
+│  │  │      
+│  │  ├─exp10
+│  │  ├─exp100
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp101
+│  │  ├─exp102
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp103
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp104
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp105
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp106
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp107
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp108
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp109
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp11
+│  │  │      mov_bbb.mp4.mp4
+│  │  │      
+│  │  ├─exp110
+│  │  ├─exp111
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp112
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp113
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp114
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp115
+│  │  │      实验七.mp4
+│  │  │      
+│  │  ├─exp116
+│  │  │      实验五.mp4
+│  │  │      
+│  │  ├─exp117
+│  │  │      实验2.mp4
+│  │  │      
+│  │  ├─exp118
+│  │  │      实验2.mp4
+│  │  │      
+│  │  ├─exp119
+│  │  │      实验2.mp4
+│  │  │      
+│  │  ├─exp12
+│  │  ├─exp120
+│  │  ├─exp121
+│  │  │      实验2.mp4
+│  │  │      
+│  │  ├─exp122
+│  │  │      实验2.mp4
+│  │  │      
+│  │  ├─exp123
+│  │  ├─exp124
+│  │  │      实验2.mp4
+│  │  │      
+│  │  ├─exp125
+│  │  ├─exp126
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp127
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp128
+│  │  │      车辆检测4.mp4.mp4
+│  │  │      
+│  │  ├─exp129
+│  │  │      车辆检测4.mp4.mp4
+│  │  │      
+│  │  ├─exp13
+│  │  ├─exp130
+│  │  │      车辆检测4.mp4.mp4
+│  │  │      
+│  │  ├─exp131
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp132
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp133
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp134
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp135
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp136
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp137
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp138
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp139
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp14
+│  │  ├─exp140
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp141
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp142
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp143
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp144
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp145
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp146
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp147
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp148
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp149
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp15
+│  │  ├─exp150
+│  │  ├─exp151
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp152
+│  │  │      车辆检测2.mp4
+│  │  │      
+│  │  ├─exp153
+│  │  │      车辆检测2.mp4
+│  │  │      
+│  │  ├─exp154
+│  │  │      车辆检测2.mp4
+│  │  │      
+│  │  ├─exp155
+│  │  │      车辆检测2.mp4
+│  │  │      
+│  │  ├─exp156
+│  │  │      行车1.mp4
+│  │  │      
+│  │  ├─exp157
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp158
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp159
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp16
+│  │  ├─exp160
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp161
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp162
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp163
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp164
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp165
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp166
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp167
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp168
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp169
+│  │  ├─exp17
+│  │  ├─exp170
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp171
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp172
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp173
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp174
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp175
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp176
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp177
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp178
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp179
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp18
+│  │  ├─exp180
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp181
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp182
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp183
+│  │  │      车辆检测2.mp4
+│  │  │      
+│  │  ├─exp184
+│  │  │      车辆检测2.mp4
+│  │  │      
+│  │  ├─exp185
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp186
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp187
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp188
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp189
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp19
+│  │  │      0.mp4
+│  │  │      
+│  │  ├─exp190
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp191
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp192
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp193
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp194
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp195
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp196
+│  │  ├─exp197
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp198
+│  │  ├─exp199
+│  │  ├─exp2
+│  │  ├─exp20
+│  │  │      save_videos.mp4
+│  │  │      
+│  │  ├─exp200
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp201
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp202
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp203
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp204
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp205
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp206
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp207
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp208
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp209
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp21
+│  │  │      save_videos.mp4
+│  │  │      
+│  │  ├─exp210
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp211
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp212
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp213
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp214
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp215
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp216
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp217
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp218
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp219
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp22
+│  │  │      save_videos.mp4
+│  │  │      
+│  │  ├─exp220
+│  │  ├─exp221
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp222
+│  │  ├─exp223
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp224
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp225
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp226
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp227
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp228
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp229
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp23
+│  │  │      save_videos.mp4
+│  │  │      
+│  │  ├─exp230
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp231
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp232
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp233
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp234
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp235
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp236
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp237
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp238
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp239
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp24
+│  │  │      save_videos.mp4
+│  │  │      
+│  │  ├─exp240
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp241
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp242
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp243
+│  │  │      行车2.mp4
+│  │  │      
+│  │  ├─exp244
+│  │  │      行车2.mp4
+│  │  │      
+│  │  ├─exp245
+│  │  │      行车2.mp4
+│  │  │      
+│  │  ├─exp246
+│  │  │      行车3.mp4
+│  │  │      
+│  │  ├─exp247
+│  │  │      行车4.mp4
+│  │  │      
+│  │  ├─exp248
+│  │  │      行车2.mp4
+│  │  │      
+│  │  ├─exp249
+│  │  │      行车2.mp4
+│  │  │      
+│  │  ├─exp25
+│  │  │      save_videos.mp4
+│  │  │      
+│  │  ├─exp250
+│  │  │      行车2.mp4
+│  │  │      
+│  │  ├─exp251
+│  │  │      行车2.mp4
+│  │  │      
+│  │  ├─exp252
+│  │  │      行车1.mp4
+│  │  │      
+│  │  ├─exp253
+│  │  │      行车1.mp4
+│  │  │      
+│  │  ├─exp254
+│  │  │      行车1.mp4
+│  │  │      
+│  │  ├─exp255
+│  │  │      行车1.mp4
+│  │  │      
+│  │  ├─exp256
+│  │  │      行车3.mp4
+│  │  │      
+│  │  ├─exp257
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp258
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp259
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp26
+│  │  │      save_videos.mp4
+│  │  │      
+│  │  ├─exp260
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp261
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp262
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp263
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp264
+│  │  │      行车2.mp4
+│  │  │      
+│  │  ├─exp265
+│  │  │      行车2.mp4
+│  │  │      
+│  │  ├─exp266
+│  │  │      行车2.mp4
+│  │  │      
+│  │  ├─exp267
+│  │  │      行车2.mp4
+│  │  │      
+│  │  ├─exp268
+│  │  │      行车2.mp4
+│  │  │      
+│  │  ├─exp269
+│  │  │      行车2.mp4
+│  │  │      
+│  │  ├─exp27
+│  │  │      save_videos.mp4
+│  │  │      
+│  │  ├─exp270
+│  │  │      行车2.mp4
+│  │  │      
+│  │  ├─exp271
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp272
+│  │  │      行车11.mp4
+│  │  │      
+│  │  ├─exp273
+│  │  │      carfellow.mp4
+│  │  │      
+│  │  ├─exp274
+│  │  │      carfellow.mp4
+│  │  │      
+│  │  ├─exp275
+│  │  ├─exp276
+│  │  ├─exp277
+│  │  ├─exp278
+│  │  │      carfellow.mp4
+│  │  │      
+│  │  ├─exp279
+│  │  │      carfellow.mp4
+│  │  │      
+│  │  ├─exp28
+│  │  │      save_videos.mp4
+│  │  │      
+│  │  ├─exp280
+│  │  │      carfellow.mp4
+│  │  │      
+│  │  ├─exp281
+│  │  │      lanechange.mp4
+│  │  │      
+│  │  ├─exp282
+│  │  │      lanechange.mp4
+│  │  │      
+│  │  ├─exp283
+│  │  │      lanechange.mp4
+│  │  │      
+│  │  ├─exp284
+│  │  │      cutin.mp4
+│  │  │      
+│  │  ├─exp285
+│  │  ├─exp286
+│  │  │      cutin.mp4
+│  │  │      
+│  │  ├─exp287
+│  │  │      cutin.mp4
+│  │  │      
+│  │  ├─exp288
+│  │  ├─exp289
+│  │  │      cutin.mp4
+│  │  │      
+│  │  ├─exp29
+│  │  │      save_videos.mp4
+│  │  │      
+│  │  ├─exp290
+│  │  │      carfellow.mp4
+│  │  │      
+│  │  ├─exp291
+│  │  │      carfellow.mp4
+│  │  │      
+│  │  ├─exp292
+│  │  │      highvolume.mp4
+│  │  │      
+│  │  ├─exp293
+│  │  │      intersection2.mp4
+│  │  │      
+│  │  ├─exp294
+│  │  │      intersection1.mp4
+│  │  │      
+│  │  ├─exp295
+│  │  │      intersection1.mp4
+│  │  │      
+│  │  ├─exp296
+│  │  │      cutin.mp4
+│  │  │      
+│  │  ├─exp297
+│  │  │      lanechange.mp4
+│  │  │      
+│  │  ├─exp298
+│  │  │      carfellow.mp4
+│  │  │      
+│  │  ├─exp299
+│  │  ├─exp3
+│  │  │      save_videos.mp4
+│  │  │      
+│  │  ├─exp30
+│  │  │      save_videos.mp4
+│  │  │      
+│  │  ├─exp300
+│  │  │      carfellow.mp4
+│  │  │      
+│  │  ├─exp301
+│  │  │      carfellow.mp4
+│  │  │      
+│  │  ├─exp302
+│  │  │      carfellow.mp4
+│  │  │      
+│  │  ├─exp303
+│  │  │      cutin.mp4
+│  │  │      
+│  │  ├─exp304
+│  │  │      cutin.mp4
+│  │  │      
+│  │  ├─exp305
+│  │  ├─exp306
+│  │  │      intersection1.mp4
+│  │  │      
+│  │  ├─exp307
+│  │  │      intersection2.mp4
+│  │  │      
+│  │  ├─exp308
+│  │  ├─exp309
+│  │  │      intersection2.mp4
+│  │  │      
+│  │  ├─exp31
+│  │  │      save_videos.mp4
+│  │  │      
+│  │  ├─exp310
+│  │  │      intersection2.mp4
+│  │  │      
+│  │  ├─exp311
+│  │  ├─exp312
+│  │  ├─exp313
+│  │  ├─exp314
+│  │  │      carfellow.mp4
+│  │  │      
+│  │  ├─exp315
+│  │  │      carfellow.mp4
+│  │  │      
+│  │  ├─exp316
+│  │  ├─exp317
+│  │  │      carfellow.mp4
+│  │  │      
+│  │  ├─exp318
+│  │  │      carfellow.mp4
+│  │  │      
+│  │  ├─exp319
+│  │  │      carfellow.mp4
+│  │  │      
+│  │  ├─exp32
+│  │  │      save_videos.mp4
+│  │  │      
+│  │  ├─exp320
+│  │  │      缺失部分.mp4
+│  │  │      
+│  │  ├─exp321
+│  │  ├─exp322
+│  │  ├─exp323
+│  │  ├─exp324
+│  │  ├─exp325
+│  │  ├─exp326
+│  │  ├─exp327
+│  │  ├─exp328
+│  │  ├─exp329
+│  │  │      缺失部分.mp4
+│  │  │      
+│  │  ├─exp33
+│  │  │      save_videos.mp4
+│  │  │      
+│  │  ├─exp330
+│  │  ├─exp331
+│  │  │      缺失部分.mp4
+│  │  │      
+│  │  ├─exp332
+│  │  │      cutin.mp4
+│  │  │      
+│  │  ├─exp333
+│  │  │      intersection1.mp4
+│  │  │      
+│  │  ├─exp334
+│  │  │      intersection2.mp4
+│  │  │      
+│  │  ├─exp335
+│  │  │      intersection2.mp4
+│  │  │      
+│  │  ├─exp336
+│  │  ├─exp337
+│  │  │      lanechange.mp4
+│  │  │      
+│  │  ├─exp338
+│  │  ├─exp339
+│  │  ├─exp34
+│  │  │      save_videos.mp4
+│  │  │      
+│  │  ├─exp340
+│  │  ├─exp341
+│  │  ├─exp342
+│  │  ├─exp343
+│  │  │      bus.jpg
+│  │  │      
+│  │  ├─exp344
+│  │  ├─exp345
+│  │  ├─exp346
+│  │  │      lanechange.mp4
+│  │  │      
+│  │  ├─exp347
+│  │  ├─exp348
+│  │  │      lanechange.mp4
+│  │  │      
+│  │  ├─exp349
+│  │  ├─exp35
+│  │  │      save_videos.mp4
+│  │  │      
+│  │  ├─exp350
+│  │  │      lanechange.mp4
+│  │  │      
+│  │  ├─exp351
+│  │  ├─exp352
+│  │  ├─exp353
+│  │  ├─exp354
+│  │  ├─exp355
+│  │  ├─exp356
+│  │  ├─exp357
+│  │  ├─exp358
+│  │  ├─exp359
+│  │  ├─exp36
+│  │  │      save_videos.mp4
+│  │  │      
+│  │  ├─exp360
+│  │  ├─exp361
+│  │  ├─exp362
+│  │  ├─exp363
+│  │  ├─exp364
+│  │  ├─exp365
+│  │  ├─exp366
+│  │  ├─exp367
+│  │  ├─exp368
+│  │  │      lanechange.mp4
+│  │  │      
+│  │  ├─exp369
+│  │  │      lanechange.mp4
+│  │  │      
+│  │  ├─exp37
+│  │  │      save_videos.mp4
+│  │  │      
+│  │  ├─exp370
+│  │  │      lanechange.mp4
+│  │  │      
+│  │  ├─exp371
+│  │  │      lanechange.mp4
+│  │  │      
+│  │  ├─exp372
+│  │  │      lanechange.mp4
+│  │  │      
+│  │  ├─exp373
+│  │  │      lanechange.mp4
+│  │  │      
+│  │  ├─exp374
+│  │  │      lanechange.mp4
+│  │  │      
+│  │  ├─exp375
+│  │  │      lanechange.mp4
+│  │  │      
+│  │  ├─exp376
+│  │  │      lanechange.mp4
+│  │  │      
+│  │  ├─exp377
+│  │  │      lanechange.mp4
+│  │  │      
+│  │  ├─exp38
+│  │  │      save_videos.mp4
+│  │  │      
+│  │  ├─exp39
+│  │  │      实验2.mp4
+│  │  │      
+│  │  ├─exp4
+│  │  │      save_videos.mp4
+│  │  │      
+│  │  ├─exp40
+│  │  │      实验2.mp4
+│  │  │      
+│  │  ├─exp41
+│  │  │      实验三.mp4
+│  │  │      
+│  │  ├─exp42
+│  │  │      实验三.mp4
+│  │  │      
+│  │  ├─exp43
+│  │  │      实验四.mp4
+│  │  │      
+│  │  ├─exp44
+│  │  │      实验五.mp4
+│  │  │      
+│  │  ├─exp45
+│  │  │      实验六.mp4
+│  │  │      
+│  │  ├─exp46
+│  │  │      实验六.mp4
+│  │  │      
+│  │  ├─exp47
+│  │  │      实验六.mp4
+│  │  │      
+│  │  ├─exp48
+│  │  │      实验六.mp4
+│  │  │      
+│  │  ├─exp49
+│  │  │      实验七.mp4
+│  │  │      
+│  │  ├─exp5
+│  │  │      save_videos.mp4
+│  │  │      
+│  │  ├─exp50
+│  │  │      实验七.mp4
+│  │  │      
+│  │  ├─exp51
+│  │  ├─exp52
+│  │  │      0.mp4
+│  │  │      
+│  │  ├─exp53
+│  │  ├─exp54
+│  │  │      0.mp4
+│  │  │      
+│  │  ├─exp55
+│  │  │      1.mp4
+│  │  │      
+│  │  ├─exp56
+│  │  ├─exp57
+│  │  ├─exp58
+│  │  ├─exp59
+│  │  │      0.mp4
+│  │  │      
+│  │  ├─exp6
+│  │  ├─exp60
+│  │  │      0.mp4
+│  │  │      
+│  │  ├─exp61
+│  │  │      0.mp4
+│  │  │      
+│  │  ├─exp62
+│  │  │      实验七.mp4
+│  │  │      
+│  │  ├─exp63
+│  │  │      实验七.mp4
+│  │  │      
+│  │  ├─exp64
+│  │  │      车辆检测.mp4
+│  │  │      
+│  │  ├─exp65
+│  │  │      60.mp4
+│  │  │      
+│  │  ├─exp66
+│  │  │      55.mp4
+│  │  │      
+│  │  ├─exp67
+│  │  │      60.mp4
+│  │  │      
+│  │  ├─exp68
+│  │  │      30.mp4
+│  │  │      
+│  │  ├─exp69
+│  │  │      232.mp4
+│  │  │      
+│  │  ├─exp7
+│  │  ├─exp70
+│  │  │      232.mp4
+│  │  │      
+│  │  ├─exp71
+│  │  │      距离1.mp4
+│  │  │      
+│  │  ├─exp72
+│  │  │      距离1.mp4
+│  │  │      
+│  │  ├─exp73
+│  │  │      距离1.mp4
+│  │  │      
+│  │  ├─exp74
+│  │  │      距离2.mp4
+│  │  │      
+│  │  ├─exp75
+│  │  │      距离2.mp4
+│  │  │      
+│  │  ├─exp76
+│  │  │      距离2.mp4
+│  │  │      
+│  │  ├─exp77
+│  │  ├─exp78
+│  │  │      距离2.mp4
+│  │  │      
+│  │  ├─exp79
+│  │  │      车辆检测.mp4
+│  │  │      
+│  │  ├─exp8
+│  │  ├─exp80
+│  │  │      车辆检测.mp4
+│  │  │      
+│  │  ├─exp81
+│  │  │      车辆检测2.mp4
+│  │  │      
+│  │  ├─exp82
+│  │  │      车辆检测2.mp4
+│  │  │      
+│  │  ├─exp83
+│  │  │      车辆检测2.mp4
+│  │  │      
+│  │  ├─exp84
+│  │  │      车辆检测2.mp4
+│  │  │      
+│  │  ├─exp85
+│  │  │      车辆检测2.mp4
+│  │  │      
+│  │  ├─exp86
+│  │  │      车辆检测3.mp4
+│  │  │      
+│  │  ├─exp87
+│  │  │      车辆检测3.mp4
+│  │  │      
+│  │  ├─exp88
+│  │  │      车辆检测3.mp4
+│  │  │      
+│  │  ├─exp89
+│  │  │      车辆检测3.mp4
+│  │  │      
+│  │  ├─exp9
+│  │  │      movie.mp4.mp4
+│  │  │      
+│  │  ├─exp90
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp91
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp92
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp93
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp94
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp95
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp96
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp97
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─exp98
+│  │  ├─exp99
+│  │  │      车辆检测4.mp4
+│  │  │      
+│  │  ├─val
+│  │  ├─val2
+│  │  ├─val3
+│  │  └─val4
+│  └─train
+│      └─exp
+│          │  events.out.tfevents.1744289679.LAPTOP-OSTLF497.13736.0
+│          │  hyp.yaml
+│          │  opt.yaml
+│          │  
+│          └─weights
+├─SMOKE-master
+│  │  .gitignore
+│  │  LICENSE
+│  │  README.md
+│  │  setup.py
+│  │  
+│  ├─configs
+│  │      smoke_gn_vector.yaml
+│  │      
+│  ├─figures
+│  │      animation.gif
+│  │      
+│  ├─smoke
+│  │  ├─config
+│  │  │      defaults.py
+│  │  │      paths_catalog.py
+│  │  │      __init__.py
+│  │  │      
+│  │  ├─csrc
+│  │  │  │  dcn_v2.h
+│  │  │  │  vision.cpp
+│  │  │  │  
+│  │  │  ├─cpu
+│  │  │  │      dcn_v2_cpu.cpp
+│  │  │  │      vision.h
+│  │  │  │      
+│  │  │  └─cuda
+│  │  │          dcn_v2_cuda.cu
+│  │  │          dcn_v2_im2col_cuda.cu
+│  │  │          dcn_v2_im2col_cuda.h
+│  │  │          dcn_v2_psroi_pooling_cuda.cu
+│  │  │          vision.h
+│  │  │          
+│  │  ├─data
+│  │  │  │  build.py
+│  │  │  │  collate_batch.py
+│  │  │  │  __init__.py
+│  │  │  │  
+│  │  │  ├─datasets
+│  │  │  │  │  concat_dataset.py
+│  │  │  │  │  kitti.py
+│  │  │  │  │  __init__.py
+│  │  │  │  │  
+│  │  │  │  └─evaluation
+│  │  │  │      │  __init__.py
+│  │  │  │      │  
+│  │  │  │      └─kitti
+│  │  │  │              kitti_eval.py
+│  │  │  │              
+│  │  │  ├─samplers
+│  │  │  │      distributed_sampler.py
+│  │  │  │      grouped_batch_sampler.py
+│  │  │  │      __init__.py
+│  │  │  │      
+│  │  │  └─transforms
+│  │  │          build.py
+│  │  │          transforms.py
+│  │  │          __init__.py
+│  │  │          
+│  │  ├─engine
+│  │  │      defaults.py
+│  │  │      inference.py
+│  │  │      launch.py
+│  │  │      test_net.py
+│  │  │      trainer.py
+│  │  │      __init__.py
+│  │  │      
+│  │  ├─layers
+│  │  │      dcn_v2.py
+│  │  │      deform_conv.py
+│  │  │      focal_loss.py
+│  │  │      utils.py
+│  │  │      
+│  │  ├─modeling
+│  │  │  │  heatmap_coder.py
+│  │  │  │  make_layers.py
+│  │  │  │  registry.py
+│  │  │  │  smoke_coder.py
+│  │  │  │  utils.py
+│  │  │  │  
+│  │  │  ├─backbone
+│  │  │  │      backbone.py
+│  │  │  │      dla.py
+│  │  │  │      __init__.py
+│  │  │  │      
+│  │  │  ├─detector
+│  │  │  │      detectors.py
+│  │  │  │      keypoint_detector.py
+│  │  │  │      __init__.py
+│  │  │  │      
+│  │  │  └─heads
+│  │  │      │  heads.py
+│  │  │      │  __init__.py
+│  │  │      │  
+│  │  │      └─smoke_head
+│  │  │              inference.py
+│  │  │              loss.py
+│  │  │              smoke_head.py
+│  │  │              smoke_predictor.py
+│  │  │              
+│  │  ├─solver
+│  │  │      build.py
+│  │  │      __init__.py
+│  │  │      
+│  │  ├─structures
+│  │  │      image_list.py
+│  │  │      params_3d.py
+│  │  │      
+│  │  └─utils
+│  │          check_point.py
+│  │          collect_env.py
+│  │          comm.py
+│  │          envs.py
+│  │          imports.py
+│  │          logger.py
+│  │          metric_logger.py
+│  │          miscellaneous.py
+│  │          model_serialization.py
+│  │          model_zoo.py
+│  │          registry.py
+│  │          timer.py
+│  │          
+│  ├─tools
+│  │      plain_train_net.py
+│  │      
+│  └─weights
+│          model_final.pth
+│          
+├─template
+│      20250507222625.png
+│      20250507223422.png
+│      Z1.jpg
+│      Z1.png
+│      Z2.jpg
+│      Z2.png
+│      
+├─test
+│      detect_A4.py
+│      
+├─user
+│      .txt
+│      1.txt
+│      注册成功.txt
+│      账号错误.txt
+│      
+├─utils
+│  │  activations.py
+│  │  autoanchor.py
+│  │  datasets.py
+│  │  distance.py
+│  │  general.py
+│  │  google_utils.py
+│  │  loss.py
+│  │  metrics.py
+│  │  plots.py
+│  │  torch_utils.py
+│  │  __init__.py
+│  │  
+│  ├─aws
+│  │      mime.sh
+│  │      resume.py
+│  │      userdata.sh
+│  │      __init__.py
+│  │      
+│  ├─google_app_engine
+│  │      additional_requirements.txt
+│  │      app.yaml
+│  │      Dockerfile
+│  │      
+│  ├─wandb_logging
+│  │  │  log_dataset.py
+│  │  │  wandb_utils.py
+│  │  │  __init__.py
+│  │  │  
+│  │  └─__pycache__
+│  │          wandb_utils.cpython-37.pyc
+│  │          __init__.cpython-37.pyc
+│  │          
+│  └─__pycache__
+│          autoanchor.cpython-312.pyc
+│          autoanchor.cpython-36.pyc
+│          autoanchor.cpython-37.pyc
+│          autoanchor.cpython-38.pyc
+│          autoanchor.cpython-39.pyc
+│          datasets.cpython-312.pyc
+│          datasets.cpython-36.pyc
+│          datasets.cpython-37.pyc
+│          datasets.cpython-38.pyc
+│          datasets.cpython-39.pyc
+│          distance.cpython-312.pyc
+│          distance.cpython-36.pyc
+│          distance.cpython-37.pyc
+│          distance.cpython-38.pyc
+│          distance.cpython-39.pyc
+│          general.cpython-312.pyc
+│          general.cpython-36.pyc
+│          general.cpython-37.pyc
+│          general.cpython-38.pyc
+│          general.cpython-39.pyc
+│          google_utils.cpython-312.pyc
+│          google_utils.cpython-36.pyc
+│          google_utils.cpython-37.pyc
+│          google_utils.cpython-38.pyc
+│          google_utils.cpython-39.pyc
+│          loss.cpython-37.pyc
+│          metrics.cpython-312.pyc
+│          metrics.cpython-36.pyc
+│          metrics.cpython-37.pyc
+│          metrics.cpython-38.pyc
+│          metrics.cpython-39.pyc
+│          plots.cpython-312.pyc
+│          plots.cpython-36.pyc
+│          plots.cpython-37.pyc
+│          plots.cpython-38.pyc
+│          plots.cpython-39.pyc
+│          torch_utils.cpython-312.pyc
+│          torch_utils.cpython-36.pyc
+│          torch_utils.cpython-37.pyc
+│          torch_utils.cpython-38.pyc
+│          torch_utils.cpython-39.pyc
+│          __init__.cpython-312.pyc
+│          __init__.cpython-36.pyc
+│          __init__.cpython-37.pyc
+│          __init__.cpython-38.pyc
+│          __init__.cpython-39.pyc
+│          
+├─weights
+│      best.pt
+│      
+├─YOLO-3D-main
+│  │  .gitignore
+│  │  bbox3d_utils.py
+│  │  depth_model.py
+│  │  detection_model.py
+│  │  load_camera_params.py
+│  │  README.md
+│  │  requirements.txt
+│  │  run.py
+│  │  
+│  └─__pycache__
+│          depth_model.cpython-312.pyc
+│          detection_model.cpython-312.pyc
+│          
+├─yolov10
+│  │  .dockerignore
+│  │  .gitattributes
+│  │  .gitignore
+│  │  detect.py
+│  │  Dockerfile
+│  │  hubconf.py
+│  │  LICENSE
+│  │  README.md
+│  │  requirements.txt
+│  │  test.py
+│  │  train.py
+│  │  tutorial.ipynb
+│  │  
+│  ├─.github
+│  │  ├─ISSUE_TEMPLATE
+│  │  │      --bug-report.md
+│  │  │      --feature-request.md
+│  │  │      -question.md
+│  │  │      
+│  │  └─workflows
+│  │          ci-testing.yml
+│  │          greetings.yml
+│  │          rebase.yml
+│  │          stale.yml
+│  │          
+│  ├─.idea
+│  │  │  .gitignore
+│  │  │  misc.xml
+│  │  │  modules.xml
+│  │  │  workspace.xml
+│  │  │  yolov5.iml
+│  │  │  
+│  │  └─inspectionProfiles
+│  │          profiles_settings.xml
+│  │          Project_Default.xml
+│  │          
+│  ├─models
+│  │  │  common.py
+│  │  │  experimental.py
+│  │  │  export.py
+│  │  │  yolo.py
+│  │  │  yolov8l.yaml
+│  │  │  yolov8m.yaml
+│  │  │  yolov8s.yaml
+│  │  │  yolov8x.yaml
+│  │  │  __init__.py
+│  │  │  
+│  │  ├─hub
+│  │  │      yolov3-spp.yaml
+│  │  │      yolov5-fpn.yaml
+│  │  │      yolov5-panet.yaml
+│  │  │      
+│  │  └─__pycache__
+│  │          common.cpython-36.pyc
+│  │          common.cpython-37.pyc
+│  │          experimental.cpython-36.pyc
+│  │          experimental.cpython-37.pyc
+│  │          yolo.cpython-36.pyc
+│  │          yolo.cpython-37.pyc
+│  │          __init__.cpython-36.pyc
+│  │          __init__.cpython-37.pyc
+│  │          
+│  ├─utils
+│  │  │  activations.py
+│  │  │  datasets.py
+│  │  │  evolve.sh
+│  │  │  general.py
+│  │  │  google_utils.py
+│  │  │  torch_utils.py
+│  │  │  __init__.py
+│  │  │  
+│  │  └─__pycache__
+│  │          datasets.cpython-36.pyc
+│  │          datasets.cpython-37.pyc
+│  │          general.cpython-312.pyc
+│  │          general.cpython-36.pyc
+│  │          general.cpython-37.pyc
+│  │          general.cpython-38.pyc
+│  │          general.cpython-39.pyc
+│  │          google_utils.cpython-36.pyc
+│  │          google_utils.cpython-37.pyc
+│  │          torch_utils.cpython-312.pyc
+│  │          torch_utils.cpython-36.pyc
+│  │          torch_utils.cpython-37.pyc
+│  │          torch_utils.cpython-38.pyc
+│  │          torch_utils.cpython-39.pyc
+│  │          __init__.cpython-312.pyc
+│  │          __init__.cpython-36.pyc
+│  │          __init__.cpython-37.pyc
+│  │          __init__.cpython-38.pyc
+│  │          __init__.cpython-39.pyc
+│  │          
+│  ├─weights
+│  ├─yolov10
+│  │      card.py
+│  │      model.py
+│  │      predict.py
+│  │      train.py
+│  │      val.py
+│  │      __init__.py
+│  │      
+│  └─__pycache__
+│          test.cpython-37.pyc
+│          
+└─__pycache__
+        detect.cpython-36.pyc
+        run.cpython-312.pyc
+        run.cpython-37.pyc
+        run.cpython-39.pyc
+        多目标.cpython-37.pyc
+        
