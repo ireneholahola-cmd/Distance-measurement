@@ -1,0 +1,6 @@
+"# Ignore weight files" 
+"*.pt" 
+"*.onnx" 
+"weights/" 
+"__pycache__/" 
+".vscode/" 
