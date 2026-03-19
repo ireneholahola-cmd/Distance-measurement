@@ -409,21 +409,26 @@ def detect(save_img=False):
     # 图像显示函数（拼接原画面与风险场）
     def cv_show(p, im0, risk_img=None):
         height, width = im0.shape[:2]
-        a = 800 / width  # 缩放比例
-        size = (800, int(height * a))
+        
+        # 放大整体显示比例
+        display_width = 1000
+        a = display_width / width  
+        size = (display_width, int(height * a))
         img_resize = cv2.resize(im0, size, interpolation=cv2.INTER_AREA)
 
         if risk_img is not None:
-            # 增加 risk_img 的显示比例
-            # 原始逻辑：保持 risk_img 纵横比，缩放高度匹配 img_resize
-            # 新逻辑：强制设置 risk_img 宽度为 img_resize 宽度的 1/2 (或者自定义像素值，比如 500)
-            
+            # 增加 risk_img 的显示比例，使其与原图更加均衡，达到“居中”放大的视觉感
             target_h = img_resize.shape[0]
-            target_w = 600 # 增加宽度，使风险图更大更清晰
+            target_w = 800 # 进一步增加宽度，从600提升到800
             
             risk_resize = cv2.resize(risk_img, (target_w, target_h), interpolation=cv2.INTER_AREA)
             
-            combined_img = np.hstack((img_resize, risk_resize))  # 横向拼接
+            # 在两个图之间增加一个细微的黑边分隔，提升视觉层次感
+            divider = np.zeros((target_h, 10, 3), dtype=np.uint8)
+            combined_img = np.hstack((img_resize, divider, risk_resize))  
+            
+            # 为了让整体看起来更居中，我们可以给 combined_img 增加外边距（Padding）
+            # 或者直接全屏显示（如果支持）
             cv2.imshow(p, combined_img)
         else:
             cv2.imshow(p, img_resize)
@@ -715,7 +720,7 @@ def detect(save_img=False):
                             'object_id': src['id'],
                             'depth_value': (src['z'] - 1.0) / 9.0 
                         }
-                        bev_visualizer.draw_box(box_3d_bev)
+                        bev_visualizer.draw_box(box_3d_bev, risk_score=src.get('scf', 0))
                         
                     # 3. Draw Risk Heatmap (Glowing Overlay)
                     # Use vis_risk_map for better visual
@@ -740,6 +745,9 @@ def detect(save_img=False):
                 # Resize
                 if risk_img.shape[0] != target_h or risk_img.shape[1] != target_w:
                     risk_img = cv2.resize(risk_img, (target_w, target_h))
+                    
+                # To make sure it really fits in the center visually we can draw the top part black if needed
+                # But since the radar origin has been adjusted in BirdEyeView, it should naturally sit centered now.
 
 
 
