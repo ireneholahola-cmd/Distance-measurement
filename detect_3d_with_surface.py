@@ -183,7 +183,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--camera-params", type=str, default="config/camera_params.yaml")
     parser.add_argument("--road-model-dir", type=str, default=str(Path(__file__).resolve().parents[1] / "code" / "models"))
     parser.add_argument("--road-conf-thres", type=float, default=0.25)
-    parser.add_argument("--depth-backend", choices=["heuristic", "depth-anything"], default="depth-anything")
+    parser.add_argument("--depth-backend", choices=["depth-anything"], default="depth-anything", help="depth backend")
     return parser
 
 
