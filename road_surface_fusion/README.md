@@ -13,7 +13,7 @@
 - `visualization.py`
   负责在主画面和 BEV 画面中绘制坑洼、裂缝和汇总信息。
 - `depth_runtime.py`
-  负责深度后端选择。默认优先使用 `depth-anything`，不可用时自动回退。
+  负责封装 `depth-anything` 深度后端，并向外提供统一深度接口。
 
 ## 调用入口
 
@@ -28,3 +28,7 @@
 ```powershell
 python detect_3d_with_surface.py --source ..\code\test\00493.jpg --no-view-img --nosave --device cpu
 ```
+
+说明：
+- 当前路面融合入口统一使用 `depth-anything`
+- 首次运行前需保证对应模型能下载或已缓存在本地

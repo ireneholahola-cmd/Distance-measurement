@@ -3,14 +3,14 @@
 - 第 15 行：1. 项目说明
 - 第 23 行：2. 新增内容
 - 第 51 行：3. 运行入口
-- 第 88 行：4. 命令行接口
-- 第 112 行：4.4 UI 同事关注
-- 第 164 行：5. 新增模块接口
-- 第 211 行：6. 主流程逻辑
-- 第 229 行：7. 风险计算逻辑
-- 第 259 行：8. 输出效果
-- 第 278 行：9. 已验证内容
-- 第 289 行：10. 注意事项
+- 第 87 行：4. 命令行接口
+- 第 109 行：4.4 UI 同事关注
+- 第 160 行：5. 新增模块接口
+- 第 208 行：6. 主流程逻辑
+- 第 226 行：7. 风险计算逻辑
+- 第 255 行：8. 输出效果
+- 第 274 行：9. 已验证内容
+- 第 285 行：10. 注意事项
 
 ## 1. 项目说明
 本版本在不直接修改 `code` 目录原始实现、尽量不改原 `Distance-measurement` 接口的前提下，新增了一套“动态目标风险 + 路面风险”融合入口。
@@ -76,7 +76,7 @@ python detect_3d_with_surface.py --source Distance-measurement\lanechange.mp4 --
 ```
 
 ```powershell
-python detect_3d_with_surface.py --source Distance-measurement\lanechange.mp4 --depth-backend heuristic
+python detect_3d_with_surface.py --source Distance-measurement\lanechange.mp4 --depth-backend depth-anything
 ```
 
 运行建议：
@@ -92,9 +92,9 @@ python detect_3d_with_surface.py --source Distance-measurement\lanechange.mp4 --
 - `--camera-params`：相机内参文件，默认 `config/camera_params.yaml`
 - `--road-model-dir`：路面模型目录，默认指向 `code/models`
 - `--road-conf-thres`：路面坑洼/裂缝检测置信度阈值，默认 `0.25`
-- `--depth-backend`：深度后端，支持 `depth-anything` 和 `heuristic`
+- `--depth-backend`：深度后端，当前仅支持 `depth-anything`
 
-补充：默认深度后端已改为 `depth-anything`；如果网络不可达，程序会自动回退到启发式深度，保证流程继续执行。
+补充：当前深度后端统一为 `depth-anything`；运行环境需要能访问模型，或者本地已经缓存对应权重。
 
 ### 4.3 参数行为补充
 - `--camera-params`
@@ -105,8 +105,6 @@ python detect_3d_with_surface.py --source Distance-measurement\lanechange.mp4 --
   路面检测阈值，值越大越保守，值越小越容易检出更多候选区域。
 - `--depth-backend depth-anything`
   默认值，优先尝试真实深度模型。
-- `--depth-backend heuristic`
-  明确指定使用启发式深度，不依赖网络。
 
 ### 4.4 UI 同事关注
 这次改动**不会直接影响**现有 UI，同事如果还继续调用原来的 `Distance-measurement/detect_3d.py` 或 `code` 里的原始界面，行为不变。
@@ -199,12 +197,13 @@ from road_surface_fusion import (
 
 ### 5.5 `RobustDepthEstimator`
 文件：`road_surface_fusion/depth_runtime.py`
-职责：默认优先使用 `depth-anything`；如果网络不可达或模型加载失败，则自动回退到 `heuristic`。
+职责：统一封装 `depth-anything` 深度后端，并保持与主流程一致的调用接口。
 接口：`RobustDepthEstimator(model_size="small", device="cpu", offline_first=False, backend="depth-anything")`、`estimate_depth(image)`、`get_depth_in_region(depth_map, bbox, method="median", scale=0.5)`。
 
 对外约定：
 - `estimate_depth(image)` 返回归一化深度图
 - `get_depth_in_region(...)` 用于给目标框或风险区域取局部深度值
+- 当前统一使用 `depth-anything`
 
 ## 6. 主流程逻辑
 每一帧的处理顺序如下：
@@ -280,14 +279,14 @@ BEV 图会看到：
 - 运行产物和 `__pycache__` 已清理，当前状态适合直接提交
 
 补充说明：
-- 当前环境网络受限时，`depth-anything` 会自动回退到启发式深度
-- 这属于运行时保护，不代表默认值被改回 `heuristic`
+- 当前版本统一使用 `depth-anything`
+- 如果模型不可用，程序会直接报错，需先保证模型下载或本地缓存可用
 
 ## 10. 注意事项
 - 默认依赖 `code/models/best.pt`、`best_night.pt`、`crack_best.pt`
 - 如果模型文件缺失，程序会直接报错
-- 默认深度后端是 `depth-anything`，不是 `heuristic`
-- 当前环境网络不通时会自动回退，不会因为深度模型不可用而整体中断
+- 默认深度后端是 `depth-anything`
+- 当前版本统一依赖 `Depth Anything`，首次运行前需确认模型可用
 - 原始 `Distance-measurement/detect_3d.py` 和 `code` 目录没有被直接修改
 
 后续扩展时，最常见的改动位置是：
