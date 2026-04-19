@@ -17,9 +17,8 @@ class RoadSurfaceDetector:
 
     def __init__(self, model_dir: Optional[str] = None, preferred_device: Optional[str] = None):
         integration_root = Path(__file__).resolve().parents[1]
-        repo_root = integration_root.parent
 
-        self.model_dir = Path(model_dir) if model_dir else repo_root / "code" / "models"
+        self.model_dir = Path(model_dir) if model_dir else integration_root / "code" / "models"
         self.day_model_path = self.model_dir / "best.pt"
         self.night_model_path = self.model_dir / "best_night.pt"
         self.crack_model_path = self.model_dir / "crack_best.pt"

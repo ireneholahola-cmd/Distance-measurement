@@ -181,7 +181,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--exist-ok", action="store_true", help="existing project/name ok, do not increment")
     parser.add_argument("--config_deepsort", type=str, default="deep_sort/configs/deep_sort.yaml")
     parser.add_argument("--camera-params", type=str, default="config/camera_params.yaml")
-    parser.add_argument("--road-model-dir", type=str, default=str(Path(__file__).resolve().parents[1] / "code" / "models"))
+    parser.add_argument("--road-model-dir", type=str, default=str(Path(__file__).resolve().parent / "code" / "models"))
     parser.add_argument("--road-conf-thres", type=float, default=0.25)
     parser.add_argument("--depth-backend", choices=["depth-anything"], default="depth-anything", help="depth backend")
     return parser
