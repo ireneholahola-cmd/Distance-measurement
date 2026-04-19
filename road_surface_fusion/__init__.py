@@ -1,3 +1,4 @@
+from .depth_runtime import RobustDepthEstimator
 from .detector import RoadSurfaceDetector
 from .risk_fusion import RoadSurfaceRiskFuser
 from .surface_analysis import RoadSurfaceAnalyzer, SurfaceAnalysisResult, SurfaceHazard
@@ -8,6 +9,7 @@ __all__ = [
     "RoadSurfaceDetector",
     "RoadSurfaceRiskFuser",
     "RoadSurfaceVisualizer",
+    "RobustDepthEstimator",
     "SurfaceAnalysisResult",
     "SurfaceHazard",
 ]
