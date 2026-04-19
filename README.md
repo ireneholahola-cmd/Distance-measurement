@@ -33,7 +33,7 @@
 
 未直接修改：
 - `Distance-measurement/detect_3d.py`
-- `code/` 目录原始代码
+- 仓库根目录原始 `code/` 项目代码
 
 新增文件的职责可以粗分为三层：
 - 入口层：`detect_3d_with_surface.py`
@@ -48,16 +48,21 @@
 - 再把路面检测、风险分析、风险融合、可视化拆进 `road_surface_fusion`，避免原入口继续膨胀
 - 最后用新的融合入口和根目录启动脚本把整条流程拼起来，同时兼容原有使用习惯
 
+当前融合版运行时已经内置路面模型目录：
+- `Distance-measurement/code/models`
+
+也就是说，别人拿到 `Distance-measurement` 目录后，不再需要额外准备仓库外层同级 `code/models`。
+
 ## 3. 运行入口
 推荐在仓库根目录运行：
 ```powershell
-python detect_3d_with_surface.py --source ..\code\test\00493.jpg --no-view-img --nosave --device cpu
+python detect_3d_with_surface.py --source Distance-measurement\lanechange.mp4 --no-view-img --nosave --device cpu
 ```
 
 也可以进入 `Distance-measurement` 后运行：
 ```powershell
 cd Distance-measurement
-python detect_3d_with_surface.py --source ..\code\test\00493.jpg --no-view-img --nosave --device cpu
+python detect_3d_with_surface.py --source lanechange.mp4 --no-view-img --nosave --device cpu
 ```
 
 根目录启动脚本会自动切换到 `Distance-measurement`、补充 `sys.path`，再转发执行真正入口脚本。
@@ -90,7 +95,7 @@ python detect_3d_with_surface.py --source Distance-measurement\lanechange.mp4 --
 
 ### 4.2 新增接口
 - `--camera-params`：相机内参文件，默认 `config/camera_params.yaml`
-- `--road-model-dir`：路面模型目录，默认指向 `code/models`
+- `--road-model-dir`：路面模型目录，默认指向 `Distance-measurement/code/models`
 - `--road-conf-thres`：路面坑洼/裂缝检测置信度阈值，默认 `0.25`
 - `--depth-backend`：深度后端，当前仅支持 `depth-anything`
 
@@ -160,7 +165,7 @@ from road_surface_fusion import (
 ## 5. 新增模块接口
 ### 5.1 `RoadSurfaceDetector`
 文件：`road_surface_fusion/detector.py`
-职责：加载 `best.pt`、`best_night.pt`、`crack_best.pt`，判断白天/夜间并切换坑洼模型，同时执行裂缝模型。
+职责：从 `Distance-measurement/code/models` 加载 `best.pt`、`best_night.pt`、`crack_best.pt`，判断白天/夜间并切换坑洼模型，同时执行裂缝模型。
 接口：`RoadSurfaceDetector(model_dir=None, preferred_device=None)`，`detect(image, conf_thres=None, skip_frame_check=False) -> (main_results, aux_results, model_label)`。
 
 返回值说明：
@@ -281,9 +286,10 @@ BEV 图会看到：
 补充说明：
 - 当前版本统一使用 `depth-anything`
 - 如果模型不可用，程序会直接报错，需先保证模型下载或本地缓存可用
+- 路面坑洼 / 裂缝模型已经随 `Distance-measurement/code/models` 内置，不再依赖外层 `code/models`
 
 ## 10. 注意事项
-- 默认依赖 `code/models/best.pt`、`best_night.pt`、`crack_best.pt`
+- 默认依赖 `Distance-measurement/code/models/best.pt`、`best_night.pt`、`crack_best.pt`
 - 如果模型文件缺失，程序会直接报错
 - 默认深度后端是 `depth-anything`
 - 当前版本统一依赖 `Depth Anything`，首次运行前需确认模型可用

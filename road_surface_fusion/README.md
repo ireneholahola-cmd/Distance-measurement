@@ -5,7 +5,7 @@
 ## 模块组成
 
 - `detector.py`
-  负责加载 `code/models` 下的坑洼、夜间坑洼、裂缝模型。
+  负责加载 `Distance-measurement/code/models` 下的坑洼、夜间坑洼、裂缝模型。
 - `surface_analysis.py`
   负责把检测结果转换成结构化路面风险。
 - `risk_fusion.py`
@@ -26,9 +26,10 @@
 如果你在仓库根目录启动，也可以直接运行：
 
 ```powershell
-python detect_3d_with_surface.py --source ..\code\test\00493.jpg --no-view-img --nosave --device cpu
+python detect_3d_with_surface.py --source lanechange.mp4 --no-view-img --nosave --device cpu
 ```
 
 说明：
 - 当前路面融合入口统一使用 `depth-anything`
 - 首次运行前需保证对应模型能下载或已缓存在本地
+- 路面检测模型已经内置在 `Distance-measurement/code/models`
