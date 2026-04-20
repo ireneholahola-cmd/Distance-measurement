@@ -2,15 +2,15 @@
 ## 目录
 - 第 15 行：1. 项目说明
 - 第 23 行：2. 新增内容
-- 第 51 行：3. 运行入口
-- 第 87 行：4. 命令行接口
-- 第 109 行：4.4 UI 同事关注
-- 第 160 行：5. 新增模块接口
-- 第 208 行：6. 主流程逻辑
-- 第 226 行：7. 风险计算逻辑
-- 第 255 行：8. 输出效果
-- 第 274 行：9. 已验证内容
-- 第 285 行：10. 注意事项
+- 第 57 行：3. 运行入口
+- 第 93 行：4. 命令行接口
+- 第 124 行：4.4 UI 同事关注
+- 第 180 行：5. 新增模块接口
+- 第 247 行：6. 主流程逻辑
+- 第 267 行：7. 风险计算逻辑
+- 第 296 行：8. 输出效果
+- 第 317 行：9. 已验证内容
+- 第 329 行：10. 注意事项
 
 ## 1. 项目说明
 本版本在不直接修改 `code` 目录原始实现、尽量不改原 `Distance-measurement` 接口的前提下，新增了一套“动态目标风险 + 路面风险”融合入口。
@@ -29,6 +29,7 @@
 - `Distance-measurement/road_surface_fusion/risk_fusion.py`
 - `Distance-measurement/road_surface_fusion/visualization.py`
 - `Distance-measurement/road_surface_fusion/depth_runtime.py`
+- `Distance-measurement/road_surface_fusion/structured_output.py`
 - `仓库根目录/detect_3d_with_surface.py`
 
 未直接修改：
@@ -98,6 +99,9 @@ python detect_3d_with_surface.py --source Distance-measurement\lanechange.mp4 --
 - `--road-model-dir`：路面模型目录，默认指向 `Distance-measurement/code/models`
 - `--road-conf-thres`：路面坑洼/裂缝检测置信度阈值，默认 `0.25`
 - `--depth-backend`：深度后端，当前仅支持 `depth-anything`
+- `--save-jsonl`：显式开启按帧结构化导出，当前默认已经开启
+- `--no-save-jsonl`：关闭按帧结构化导出
+- `--structured-dir`：结构化输出子目录名，默认 `structured`
 
 补充：当前深度后端统一为 `depth-anything`；运行环境需要能访问模型，或者本地已经缓存对应权重。
 
@@ -110,6 +114,12 @@ python detect_3d_with_surface.py --source Distance-measurement\lanechange.mp4 --
   路面检测阈值，值越大越保守，值越小越容易检出更多候选区域。
 - `--depth-backend depth-anything`
   默认值，优先尝试真实深度模型。
+- `--save-jsonl`
+  当前默认开启，会在当前运行目录下额外输出按帧 JSONL 文件。
+- `--no-save-jsonl`
+  如果本次运行只想看画面或只做性能测试，可以显式关闭 JSONL 导出。
+- `--structured-dir`
+  仅在 `--save-jsonl` 打开时生效，默认输出到 `save_dir/structured/frame_results.jsonl`。
 
 ### 4.4 UI 同事关注
 这次改动**不会直接影响**现有 UI，同事如果还继续调用原来的 `Distance-measurement/detect_3d.py` 或 `code` 里的原始界面，行为不变。
@@ -123,7 +133,7 @@ python detect_3d_with_surface.py --source Distance-measurement\lanechange.mp4 --
 UI 如果通过命令行集成，优先关注这些参数：
 - 输入相关：`--source`
 - 显示控制：`--view-img`、`--no-view-img`
-- 输出控制：`--nosave`、`--project`、`--name`
+- 输出控制：`--nosave`、`--project`、`--name`、`--save-jsonl`、`--no-save-jsonl`、`--structured-dir`
 - 路面能力：`--road-model-dir`、`--road-conf-thres`
 - 深度后端：`--depth-backend`
 
@@ -131,12 +141,15 @@ UI 侧当前可依赖的输入输出约定：
 - 输入仍然是图片、视频、摄像头编号或流地址，通过 `--source` 传入
 - 图片保存时，输出文件名为 `原文件名_with_risk.xxx`
 - 视频保存时，输出为“主画面 + BEV”拼接视频
+- 当前默认会按帧输出结构化结果到 `runs/.../structured/frame_results.jsonl`
 - `--no-view-img` 时不会弹 OpenCV 窗口，适合外部 UI 自己接管展示
 
-当前**没有新增**这些接口：
+当前仍然**没有新增**这些接口：
 - 没有 HTTP / WebSocket / REST API
-- 没有单独的 JSON 结果导出接口
 - `detect_3d_with_surface.py` 仍以脚本运行为主，不是稳定的函数式 UI SDK
+
+当前**已经新增**的结构化接口：
+- 有单独的 JSONL 按帧导出接口，适合 UI、日志系统或离线分析读取
 
 如果 UI 同事需要做 Python 侧集成，可以直接 import：
 - `RoadSurfaceDetector`
@@ -144,6 +157,7 @@ UI 侧当前可依赖的输入输出约定：
 - `RoadSurfaceRiskFuser`
 - `RoadSurfaceVisualizer`
 - `RobustDepthEstimator`
+- `StructuredOutputWriter`
 一个最小化导入示例：
 
 ```python
@@ -153,6 +167,7 @@ from road_surface_fusion import (
     RoadSurfaceRiskFuser,
     RoadSurfaceVisualizer,
     RobustDepthEstimator,
+    StructuredOutputWriter,
 )
 ```
 
@@ -210,6 +225,25 @@ from road_surface_fusion import (
 - `get_depth_in_region(...)` 用于给目标框或风险区域取局部深度值
 - 当前统一使用 `depth-anything`
 
+### 5.6 `StructuredOutputWriter`
+文件：`road_surface_fusion/structured_output.py`
+职责：把每一帧的动态目标、路面风险和最终决策写成 JSONL，便于 UI、日志系统或后处理程序读取。
+接口：
+- `StructuredOutputWriter(output_dir, filename="frame_results.jsonl")`
+- `write_frame(frame_record) -> None`
+- `close() -> None`
+- `build_frame_record(...) -> dict`
+
+当前单帧 JSONL 记录中会包含：
+- `targets`：动态目标列表
+- `surface_hazards`：坑洼 / 裂缝列表
+- `dynamic_risk`
+- `surface_risk`
+- `combined_risk`
+- `decision_status`
+- `warning_text`
+- `surface_summary`
+
 ## 6. 主流程逻辑
 每一帧的处理顺序如下：
 1. 主模型检测车、人等动态目标。
@@ -221,7 +255,9 @@ from road_surface_fusion import (
 7. 估计目标 3D 位置并生成动态风险场。
 8. 将坑洼/裂缝映射为 BEV 静态风险场。
 9. 融合动态风险和路面风险。
-10. 输出主画面与 BEV 拼接结果。
+10. 生成最终决策状态和预警文本。
+11. 默认额外写出当前帧结构化记录；若传 `--no-save-jsonl` 则关闭。
+12. 输出主画面与 BEV 拼接结果。
 
 这条流程的实现原则是：
 - 动态目标风险尽量沿用原项目现有逻辑
@@ -274,7 +310,9 @@ BEV 图会看到：
 保存行为说明：
 - 图片输入时，输出文件名为 `原文件名_with_risk.xxx`
 - 视频输入时，输出为主画面和 BEV 拼接后的视频
-- 指定 `--nosave` 时，不会落盘保存结果
+- 默认会额外生成 `runs/.../structured/frame_results.jsonl`
+- 如果不需要结构化结果，可显式传 `--no-save-jsonl`
+- 指定 `--nosave` 时，不保存图片和视频；若还不想保存 JSONL，需要再加 `--no-save-jsonl`
 
 ## 9. 已验证内容
 已完成：
@@ -298,6 +336,7 @@ BEV 图会看到：
 后续扩展时，最常见的改动位置是：
 - 调整路面检测阈值：`--road-conf-thres`
 - 替换模型目录：`--road-model-dir`
+- 调整结构化输出字段：`road_surface_fusion/structured_output.py`
 - 调整风险评分：`road_surface_fusion/surface_analysis.py`
 - 调整融合策略：`road_surface_fusion/risk_fusion.py`
 - 调整画面样式：`road_surface_fusion/visualization.py`

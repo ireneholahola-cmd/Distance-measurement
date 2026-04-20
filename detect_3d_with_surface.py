@@ -23,7 +23,15 @@ from yolov10.utils.torch_utils import load_classifier, select_device, time_synch
 
 from bbox3d_utils import BBox3DEstimator, BirdEyeView
 from risk_field import RiskFieldEngine
-from road_surface_fusion import RoadSurfaceAnalyzer, RoadSurfaceDetector, RoadSurfaceRiskFuser, RoadSurfaceVisualizer, RobustDepthEstimator
+from road_surface_fusion import (
+    RoadSurfaceAnalyzer,
+    RoadSurfaceDetector,
+    RoadSurfaceRiskFuser,
+    RoadSurfaceVisualizer,
+    RobustDepthEstimator,
+    StructuredOutputWriter,
+    build_frame_record,
+)
 
 import sys
 
@@ -32,6 +40,36 @@ sys.path.insert(0, "./yolov10")
 
 DRAW_WITH_DISTANCE = {"bicycle", "car", "motorcycle", "bus", "truck"}
 TRACKED_CLASSES = {0, 1, 2, 3, 5, 7}
+
+
+def get_combined_status(combined_risk: float) -> str:
+    if combined_risk >= 0.8:
+        return "HIGH"
+    if combined_risk >= 0.55:
+        return "MEDIUM"
+    if combined_risk >= 0.25:
+        return "LOW"
+    return "CLEAR"
+
+
+def build_warning_text(
+    dynamic_risk: float,
+    surface_risk: float,
+    combined_risk: float,
+    surface_analysis,
+) -> str:
+    decision_status = get_combined_status(combined_risk)
+    if decision_status == "CLEAR":
+        return "Path is clear"
+
+    if surface_risk >= dynamic_risk and surface_analysis.hazards:
+        return f"{decision_status} road surface risk: {surface_analysis.warning_text}"
+
+    if decision_status == "HIGH":
+        return "HIGH dynamic object risk ahead"
+    if decision_status == "MEDIUM":
+        return "MEDIUM dynamic object risk ahead"
+    return "LOW dynamic object risk ahead"
 
 
 def bbox_rel(image_width, image_height, *xyxy):
@@ -100,17 +138,14 @@ def draw_combined_status_panel(
     combined_risk: float,
     surface_analysis,
 ) -> None:
-    if combined_risk >= 0.8:
-        status = "HIGH"
+    status = get_combined_status(combined_risk)
+    if status == "HIGH":
         color = (0, 0, 255)
-    elif combined_risk >= 0.55:
-        status = "MEDIUM"
+    elif status == "MEDIUM":
         color = (0, 165, 255)
-    elif combined_risk >= 0.25:
-        status = "LOW"
+    elif status == "LOW":
         color = (0, 215, 255)
     else:
-        status = "CLEAR"
         color = (0, 180, 0)
 
     panel_w = 360
@@ -168,7 +203,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--device", default="", help="cuda device, i.e. 0 or 0,1,2,3 or cpu")
     parser.add_argument("--view-img", dest="view_img", action="store_true", help="display results")
     parser.add_argument("--no-view-img", dest="view_img", action="store_false", help="disable display results")
-    parser.set_defaults(view_img=True)
+    parser.set_defaults(view_img=True, save_jsonl=True)
     parser.add_argument("--save-txt", action="store_true", help="save results to *.txt")
     parser.add_argument("--save-conf", action="store_true", help="save confidences in --save-txt labels")
     parser.add_argument("--nosave", action="store_true", help="do not save images/videos")
@@ -184,6 +219,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--road-model-dir", type=str, default=str(Path(__file__).resolve().parent / "code" / "models"))
     parser.add_argument("--road-conf-thres", type=float, default=0.25)
     parser.add_argument("--depth-backend", choices=["depth-anything"], default="depth-anything", help="depth backend")
+    parser.add_argument("--save-jsonl", dest="save_jsonl", action="store_true", help="enable per-frame structured jsonl export")
+    parser.add_argument("--no-save-jsonl", dest="save_jsonl", action="store_false", help="disable per-frame structured jsonl export")
+    parser.add_argument("--structured-dir", type=str, default="structured", help="structured output subdirectory name")
     return parser
 
 
@@ -196,6 +234,10 @@ def detect(save_img=False):
 
     save_dir = Path(increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok))
     (save_dir / "labels" if save_txt else save_dir).mkdir(parents=True, exist_ok=True)
+    structured_writer = None
+    if opt.save_jsonl:
+        structured_writer = StructuredOutputWriter(save_dir / opt.structured_dir)
+        print(f"Structured output will be saved to {structured_writer.output_path}")
 
     set_logging()
     device = select_device(opt.device)
@@ -412,6 +454,8 @@ def detect(save_img=False):
                             "yaw": yaw,
                             "type": object_type,
                             "dims": object_dims,
+                            "confidence": conf,
+                            "bbox_2d": [int(x1), int(y1), int(x2), int(y2)],
                             "box_3d_draw": box_3d_draw,
                             "class_name": current_class,
                         }
@@ -468,6 +512,8 @@ def detect(save_img=False):
             total_risk_map += surface_risk_map
             vis_risk_map = np.maximum(vis_risk_map, surface_vis_map)
             combined_risk = road_fuser.fuse_risk(dynamic_risk, surface_risk)
+            decision_status = get_combined_status(combined_risk)
+            warning_text = build_warning_text(dynamic_risk, surface_risk, combined_risk, surface_analysis)
             if surface_risk >= dynamic_risk and surface_analysis.hazards:
                 max_risk_id = "ROAD"
 
@@ -517,6 +563,24 @@ def detect(save_img=False):
             if risk_img.shape[0] != target_h or risk_img.shape[1] != target_w:
                 risk_img = cv2.resize(risk_img, (target_w, target_h))
 
+            if structured_writer is not None:
+                frame_record = build_frame_record(
+                    source=str(p),
+                    stream_index=i,
+                    frame_index=frame_idx,
+                    source_frame_index=frame,
+                    image_shape=im0.shape,
+                    dynamic_targets=risk_sources,
+                    surface_analysis=surface_analysis,
+                    dynamic_risk=dynamic_risk,
+                    surface_risk=surface_risk,
+                    combined_risk=combined_risk,
+                    decision_status=decision_status,
+                    warning_text=warning_text,
+                    max_risk_source=max_risk_id,
+                )
+                structured_writer.write_frame(frame_record)
+
             print(f"{s}Done. ({t2 - t1:.3f}s)")
 
             if view_img:
@@ -552,9 +616,17 @@ def detect(save_img=False):
 
                     vid_writer.write(np.hstack((im0, risk_img)))
 
+    if isinstance(vid_writer, cv2.VideoWriter):
+        vid_writer.release()
+    if structured_writer is not None:
+        structured_writer.close()
+
     if save_txt or save_img:
         labels_msg = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ""
-        print(f"Results saved to {save_dir}{labels_msg}")
+        structured_msg = f"\nStructured jsonl saved to {structured_writer.output_path}" if structured_writer is not None else ""
+        print(f"Results saved to {save_dir}{labels_msg}{structured_msg}")
+    elif structured_writer is not None:
+        print(f"Structured jsonl saved to {structured_writer.output_path}")
 
     print(f"Done. ({time.time() - t0:.3f}s)")
 
