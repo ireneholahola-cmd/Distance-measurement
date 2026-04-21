@@ -32,3 +32,7 @@ motmetrics>=1.4.0,<2.0
 # Optional training / dataset extras can be installed on demand:
 # tensorboard>=2.13.0,<3.0
 # pycocotools>=2.0
+
+# UI libraries
+PyQt5>=5.15.0,<6.0
+streamlit>=1.30.0,<2.0
