@@ -1,342 +1,233 @@
-﻿# Distance-measurement 路面风险融合版
-## 目录
-- 第 15 行：1. 项目说明
-- 第 23 行：2. 新增内容
-- 第 57 行：3. 运行入口
-- 第 93 行：4. 命令行接口
-- 第 124 行：4.4 UI 同事关注
-- 第 180 行：5. 新增模块接口
-- 第 247 行：6. 主流程逻辑
-- 第 267 行：7. 风险计算逻辑
-- 第 296 行：8. 输出效果
-- 第 317 行：9. 已验证内容
-- 第 329 行：10. 注意事项
+# Distance-measurement Surface Fusion Fork
 
-## 1. 项目说明
-本版本在不直接修改 `code` 目录原始实现、尽量不改原 `Distance-measurement` 接口的前提下，新增了一套“动态目标风险 + 路面风险”融合入口。
+这个 fork 的核心目标是：保留原 `detect_3d.py` 的主体结构，只新增少量路面融合 hook，方便同事直接对照原脚本维护。
 
-运行 `detect_3d_with_surface.py` 时，系统除了保留原有车辆、行人检测和 3D 风险视图，还会：
-- 在主画面绘制坑洼、裂缝检测结果
-- 在 BEV 风险图中加入路面静态风险
-- 在最终风险判断中考虑路面坑洼/裂缝
+原始入口 `detect_3d.py` 没有改动；`code/` 目录里的坑洼、裂缝相关源码也没有改动。融合版入口是 `detect_3d_with_surface.py`，复杂逻辑放在 `road_surface_fusion/`。
 
-## 2. 新增内容
-新增文件：
-- `Distance-measurement/detect_3d_with_surface.py`
-- `Distance-measurement/road_surface_fusion/__init__.py`
-- `Distance-measurement/road_surface_fusion/detector.py`
-- `Distance-measurement/road_surface_fusion/surface_analysis.py`
-- `Distance-measurement/road_surface_fusion/risk_fusion.py`
-- `Distance-measurement/road_surface_fusion/visualization.py`
-- `Distance-measurement/road_surface_fusion/depth_runtime.py`
-- `Distance-measurement/road_surface_fusion/structured_output.py`
-- `仓库根目录/detect_3d_with_surface.py`
+## 和原代码不一样的地方
 
-未直接修改：
-- `Distance-measurement/detect_3d.py`
-- 仓库根目录原始 `code/` 项目代码
+### 1. 新增融合入口
 
-新增文件的职责可以粗分为三层：
-- 入口层：`detect_3d_with_surface.py`
-  负责命令行参数、模型初始化、整条处理流程调度。
-- 能力层：`road_surface_fusion/*.py`
-  负责路面检测、风险分析、风险融合和可视化。
-- 启动层：仓库根目录 `detect_3d_with_surface.py`
-  负责把根目录命令转发到 `Distance-measurement` 目录。
+新增或重建：
 
-这种拆法和这次实际集成步骤是一一对应的：
-- 先梳理 `Distance-measurement` 原始入口，再抽取 `code` 中路面模型的推理能力
-- 再把路面检测、风险分析、风险融合、可视化拆进 `road_surface_fusion`，避免原入口继续膨胀
-- 最后用新的融合入口和根目录启动脚本把整条流程拼起来，同时兼容原有使用习惯
+- `detect_3d_with_surface.py`
+- `road_surface_fusion/`
 
-当前融合版运行时已经内置路面模型目录：
-- `Distance-measurement/code/models`
+`detect_3d_with_surface.py` 基本以 `detect_3d.py` 为底稿，只在固定位置加入路面相关 hook：
 
-也就是说，别人拿到 `Distance-measurement` 目录后，不再需要额外准备仓库外层同级 `code/models`。
+- 顶部新增 `road_surface_fusion` 的必要 import
+- 初始化阶段新增路面检测、分析、融合、可视化和 JSONL writer 对象
+- 每帧 `depth_map` 生成后新增路面检测和分析
+- 动态风险计算后新增路面风险场叠加
+- BEV 绘制时新增路面风险点
+- 主画面显示/保存前新增坑洼、裂缝框和 mask 绘制
+- 原 `vehicle_info.txt` 日志附近新增 JSONL 结构化输出
 
-## 3. 运行入口
-推荐在仓库根目录运行：
-```powershell
-python detect_3d_with_surface.py --source Distance-measurement\lanechange.mp4 --no-view-img --nosave --device cpu
-```
+### 2. 保留原脚本结构
 
-也可以进入 `Distance-measurement` 后运行：
-```powershell
-cd Distance-measurement
-python detect_3d_with_surface.py --source lanechange.mp4 --no-view-img --nosave --device cpu
-```
+融合入口没有改成一套全新的流程，而是继续保留原脚本里的：
 
-根目录启动脚本会自动切换到 `Distance-measurement`、补充 `sys.path`，再转发执行真正入口脚本。
-常见运行示例：
+- `detect()` 主函数
+- 主循环结构
+- YOLO 检测流程
+- DeepSort 跟踪流程
+- Depth Anything 深度估计流程
+- 3D box 绘制逻辑
+- BEV 绘制逻辑
+- 图片、视频保存逻辑
+- `vehicle_info.txt` 文本日志逻辑
 
-```powershell
-python detect_3d_with_surface.py --source Distance-measurement\lanechange.mp4
-```
+这样同事看 `detect_3d.py` 和 `detect_3d_with_surface.py` 的 diff 时，主要看到的是少量融合点，而不是一份重新设计过的新脚本。
 
-```powershell
-python detect_3d_with_surface.py --source 0
-```
+### 3. 行人进入风险评估
 
-```powershell
-python detect_3d_with_surface.py --source Distance-measurement\lanechange.mp4 --road-conf-thres 0.35
-```
-
-```powershell
-python detect_3d_with_surface.py --source Distance-measurement\lanechange.mp4 --depth-backend depth-anything
-```
-
-运行建议：
-- 本地联调用 `--no-view-img` 时，更适合让外部 UI 接管显示
-- 批处理测试建议加 `--nosave`
-- 需要留样结果时，建议显式传 `--project` 和 `--name`
-
-## 4. 命令行接口
-### 4.1 原有接口
-沿用原脚本常用参数：`--weights`、`--source`、`--img-size`、`--conf-thres`、`--iou-thres`、`--device`、`--view-img`、`--no-view-img`、`--save-txt`、`--save-conf`、`--nosave`、`--classes`、`--agnostic-nms`、`--augment`、`--update`、`--project`、`--name`、`--exist-ok`、`--config_deepsort`。
-
-### 4.2 新增接口
-- `--camera-params`：相机内参文件，默认 `config/camera_params.yaml`
-- `--road-model-dir`：路面模型目录，默认指向 `Distance-measurement/code/models`
-- `--road-conf-thres`：路面坑洼/裂缝检测置信度阈值，默认 `0.25`
-- `--depth-backend`：深度后端，当前仅支持 `depth-anything`
-- `--save-jsonl`：显式开启按帧结构化导出，当前默认已经开启
-- `--no-save-jsonl`：关闭按帧结构化导出
-- `--structured-dir`：结构化输出子目录名，默认 `structured`
-
-补充：当前深度后端统一为 `depth-anything`；运行环境需要能访问模型，或者本地已经缓存对应权重。
-
-### 4.3 参数行为补充
-- `--camera-params`
-  如果文件存在，则优先读取真实相机内参；如果读取失败，脚本会按输入分辨率估算一个近似矩阵。
-- `--road-model-dir`
-  目录下默认需要有 `best.pt`、`best_night.pt`、`crack_best.pt`。
-- `--road-conf-thres`
-  路面检测阈值，值越大越保守，值越小越容易检出更多候选区域。
-- `--depth-backend depth-anything`
-  默认值，优先尝试真实深度模型。
-- `--save-jsonl`
-  当前默认开启，会在当前运行目录下额外输出按帧 JSONL 文件。
-- `--no-save-jsonl`
-  如果本次运行只想看画面或只做性能测试，可以显式关闭 JSONL 导出。
-- `--structured-dir`
-  仅在 `--save-jsonl` 打开时生效，默认输出到 `save_dir/structured/frame_results.jsonl`。
-
-### 4.4 UI 同事关注
-这次改动**不会直接影响**现有 UI，同事如果还继续调用原来的 `Distance-measurement/detect_3d.py` 或 `code` 里的原始界面，行为不变。
-
-只有在 UI 主动切到新入口 `detect_3d_with_surface.py` 时，界面才会新增以下内容：
-- 主画面增加坑洼、裂缝框和半透明 mask
-- 主画面左上角增加路面摘要面板
-- 主画面右上角增加综合风险状态面板
-- 右侧 BEV 图会显示 `P` / `C` 路面风险点
-
-UI 如果通过命令行集成，优先关注这些参数：
-- 输入相关：`--source`
-- 显示控制：`--view-img`、`--no-view-img`
-- 输出控制：`--nosave`、`--project`、`--name`、`--save-jsonl`、`--no-save-jsonl`、`--structured-dir`
-- 路面能力：`--road-model-dir`、`--road-conf-thres`
-- 深度后端：`--depth-backend`
-
-UI 侧当前可依赖的输入输出约定：
-- 输入仍然是图片、视频、摄像头编号或流地址，通过 `--source` 传入
-- 图片保存时，输出文件名为 `原文件名_with_risk.xxx`
-- 视频保存时，输出为“主画面 + BEV”拼接视频
-- 当前默认会按帧输出结构化结果到 `runs/.../structured/frame_results.jsonl`
-- `--no-view-img` 时不会弹 OpenCV 窗口，适合外部 UI 自己接管展示
-
-当前仍然**没有新增**这些接口：
-- 没有 HTTP / WebSocket / REST API
-- `detect_3d_with_surface.py` 仍以脚本运行为主，不是稳定的函数式 UI SDK
-
-当前**已经新增**的结构化接口：
-- 有单独的 JSONL 按帧导出接口，适合 UI、日志系统或离线分析读取
-
-如果 UI 同事需要做 Python 侧集成，可以直接 import：
-- `RoadSurfaceDetector`
-- `RoadSurfaceAnalyzer`
-- `RoadSurfaceRiskFuser`
-- `RoadSurfaceVisualizer`
-- `RobustDepthEstimator`
-- `StructuredOutputWriter`
-一个最小化导入示例：
+原脚本动态风险过滤类别是：
 
 ```python
-from road_surface_fusion import (
-    RoadSurfaceDetector,
-    RoadSurfaceAnalyzer,
-    RoadSurfaceRiskFuser,
-    RoadSurfaceVisualizer,
-    RobustDepthEstimator,
-    StructuredOutputWriter,
-)
+valid_classes = {1, 2, 3, 5, 7}
 ```
 
-如果 UI 同事未来要做更细粒度联调，建议优先把集成点放在这两层：
-- 脚本层：直接调用 `detect_3d_with_surface.py`
-  适合快速接通演示流程。
-- 模块层：按需调用 `RoadSurfaceDetector`、`RoadSurfaceAnalyzer`、`RoadSurfaceVisualizer`
-  适合未来把结果挂进你们自己的 UI 状态管理或消息总线。
+融合版改为：
 
-## 5. 新增模块接口
-### 5.1 `RoadSurfaceDetector`
-文件：`road_surface_fusion/detector.py`
-职责：从 `Distance-measurement/code/models` 加载 `best.pt`、`best_night.pt`、`crack_best.pt`，判断白天/夜间并切换坑洼模型，同时执行裂缝模型。
-接口：`RoadSurfaceDetector(model_dir=None, preferred_device=None)`，`detect(image, conf_thres=None, skip_frame_check=False) -> (main_results, aux_results, model_label)`。
-
-返回值说明：
-- `main_results`：坑洼主模型结果
-- `aux_results`：裂缝辅助模型结果
-- `model_label`：当前主模型标签，值为 `day` 或 `night`
-
-### 5.2 `RoadSurfaceAnalyzer`
-文件：`road_surface_fusion/surface_analysis.py`
-职责：解析 box 或 mask，估计坑洼/裂缝距离与横向位置，输出结构化风险对象和整体路面风险分数。
-接口：`RoadSurfaceAnalyzer(danger_zone_ratio=0.4)`，`analyze(image, depth_map, camera_matrix, main_results, aux_results, model_label) -> SurfaceAnalysisResult`。
-关键输出：`hazards`、`pothole_count`、`crack_count`、`road_risk_score`、`road_danger_level`、`warning_text`。
-
-补充说明：
-- `hazards` 里会放每一个坑洼或裂缝的结构化对象
-- `road_risk_score` 是路面整体风险分数
-- `road_danger_level` 是离散等级，便于直接给 UI 做状态显示
-- `warning_text` 是给面板展示准备的简短提示
-
-### 5.3 `RoadSurfaceRiskFuser`
-文件：`road_surface_fusion/risk_fusion.py`
-职责：把路面风险映射到 BEV 风险场，输出路面热力图和风险分数，并与动态目标风险融合。
-接口：`build_surface_maps(analysis, risk_engine) -> (surface_risk_map, surface_vis_map, surface_risk)`，`fuse_risk(dynamic_risk, surface_risk) -> combined_risk`。
-当前规则：`combined_risk = max(dynamic_risk, surface_risk)`。
-
-### 5.4 `RoadSurfaceVisualizer`
-文件：`road_surface_fusion/visualization.py`
-职责：在主画面绘制坑洼/裂缝 mask、框、距离和摘要面板，在 BEV 图中绘制路面风险点、风险状态和简写标签。
-接口：`draw_on_frame(image, analysis) -> np.ndarray`，`draw_on_bev(bev_visualizer, analysis) -> None`。
-
-可视化约定：
-- `draw_on_frame` 返回的是叠加后的图像
-- `draw_on_bev` 直接在传入的 BEV 画布上绘制，不单独返回新对象
-
-### 5.5 `RobustDepthEstimator`
-文件：`road_surface_fusion/depth_runtime.py`
-职责：统一封装 `depth-anything` 深度后端，并保持与主流程一致的调用接口。
-接口：`RobustDepthEstimator(model_size="small", device="cpu", offline_first=False, backend="depth-anything")`、`estimate_depth(image)`、`get_depth_in_region(depth_map, bbox, method="median", scale=0.5)`。
-
-对外约定：
-- `estimate_depth(image)` 返回归一化深度图
-- `get_depth_in_region(...)` 用于给目标框或风险区域取局部深度值
-- 当前统一使用 `depth-anything`
-
-### 5.6 `StructuredOutputWriter`
-文件：`road_surface_fusion/structured_output.py`
-职责：把每一帧的动态目标、路面风险和最终决策写成 JSONL，便于 UI、日志系统或后处理程序读取。
-接口：
-- `StructuredOutputWriter(output_dir, filename="frame_results.jsonl")`
-- `write_frame(frame_record) -> None`
-- `close() -> None`
-- `build_frame_record(...) -> dict`
-
-当前单帧 JSONL 记录中会包含：
-- `targets`：动态目标列表
-- `surface_hazards`：坑洼 / 裂缝列表
-- `dynamic_risk`
-- `surface_risk`
-- `combined_risk`
-- `decision_status`
-- `warning_text`
-- `surface_summary`
-
-## 6. 主流程逻辑
-每一帧的处理顺序如下：
-1. 主模型检测车、人等动态目标。
-2. 生成当前帧深度图。
-3. 路面模型检测坑洼和裂缝。
-4. 将路面检测结果转换成 `SurfaceHazard`。
-5. 在主画面叠加路面检测结果。
-6. DeepSORT 跟踪动态目标。
-7. 估计目标 3D 位置并生成动态风险场。
-8. 将坑洼/裂缝映射为 BEV 静态风险场。
-9. 融合动态风险和路面风险。
-10. 生成最终决策状态和预警文本。
-11. 默认额外写出当前帧结构化记录；若传 `--no-save-jsonl` 则关闭。
-12. 输出主画面与 BEV 拼接结果。
-
-这条流程的实现原则是：
-- 动态目标风险尽量沿用原项目现有逻辑
-- 路面风险作为新增静态风险源插入，不强改原风控框架
-- 让主画面、BEV、最终决策三处同时感知路面信息
-
-## 7. 风险计算逻辑
-路面风险的计算基于：
-- 检测置信度
-- 区域面积占比
-- 检测位置是否靠近图像底部
-- 深度估计得到的距离
-- 风险类型是坑洼还是裂缝
-
-当前实现中：
-- 坑洼权重高于裂缝
-- 越大、越近、越靠近车前区域，风险越高
-- 总路面风险不是平均值，而是“最高风险 + 密度增益 + 近距离增益”
-
-动态目标方面，本次融合版显式保留了：
 ```python
-TRACKED_CLASSES = {0, 1, 2, 3, 5, 7}
+valid_classes = {0, 1, 2, 3, 5, 7}
 ```
-即把 `person` 也纳入了跟踪和风险评估。
-最终融合逻辑当前比较直接：
+
+也就是把 `person=0` 加入风险评估，其它动态目标处理逻辑尽量保持原样。
+
+### 4. 新增路面风险融合
+
+动态目标风险仍然按原脚本计算。融合版只在动态风险计算完成后追加路面风险：
 
 ```python
+surface_risk_map, surface_vis_map, surface_risk = road_fuser.build_surface_maps(surface_analysis, risk_engine)
+total_risk_map += surface_risk_map
+vis_risk_map = np.maximum(vis_risk_map, surface_vis_map)
 combined_risk = max(dynamic_risk, surface_risk)
 ```
 
-这么做的原因是：
-- 规则简单，便于排查
-- 不会把高路面风险被低动态风险“平均掉”
-- 对预警系统来说更偏保守，工程上更稳
+如果本帧最高风险来自路面，并且检测到了坑洼或裂缝，则 HUD 风险来源显示为：
 
-## 8. 输出效果
-主画面会看到：
-- 车辆和行人的检测框
-- 坑洼和裂缝框
-- 若模型返回 mask，则显示半透明着色
-- 左上角路面摘要面板
-- 右上角综合风险状态面板
+```python
+max_risk_id = "ROAD"
+```
 
-BEV 图会看到：
-- 动态目标框和轨迹
-- 风险热力图
-- `P` 表示坑洼，`C` 表示裂缝
-- 底部显示路面风险等级与分数
+### 5. 新增 JSONL 结构化日志
 
-保存行为说明：
-- 图片输入时，输出文件名为 `原文件名_with_risk.xxx`
-- 视频输入时，输出为主画面和 BEV 拼接后的视频
-- 默认会额外生成 `runs/.../structured/frame_results.jsonl`
-- 如果不需要结构化结果，可显式传 `--no-save-jsonl`
-- 指定 `--nosave` 时，不保存图片和视频；若还不想保存 JSONL，需要再加 `--no-save-jsonl`
+原来的 `vehicle_info.txt` 保留。融合版在原日志附近额外输出结构化 JSONL：
 
-## 9. 已验证内容
-已完成：
-- 新增脚本和新增模块通过语法检查
-- 图片输入做过实际运行验证
-- 根目录运行方式验证可直接启动
-- 运行产物和 `__pycache__` 已清理，当前状态适合直接提交
+```text
+runs/detect/exp/structured/frame_results.jsonl
+```
 
-补充说明：
-- 当前版本统一使用 `depth-anything`
-- 如果模型不可用，程序会直接报错，需先保证模型下载或本地缓存可用
-- 路面坑洼 / 裂缝模型已经随 `Distance-measurement/code/models` 内置，不再依赖外层 `code/models`
+实际路径受 `--project`、`--name`、`--exist-ok` 影响。
 
-## 10. 注意事项
-- 默认依赖 `Distance-measurement/code/models/best.pt`、`best_night.pt`、`crack_best.pt`
-- 如果模型文件缺失，程序会直接报错
-- 默认深度后端是 `depth-anything`
-- 当前版本统一依赖 `Depth Anything`，首次运行前需确认模型可用
-- 原始 `Distance-measurement/detect_3d.py` 和 `code` 目录没有被直接修改
+每行是一帧结果，主要字段包括：
 
-后续扩展时，最常见的改动位置是：
-- 调整路面检测阈值：`--road-conf-thres`
-- 替换模型目录：`--road-model-dir`
-- 调整结构化输出字段：`road_surface_fusion/structured_output.py`
-- 调整风险评分：`road_surface_fusion/surface_analysis.py`
-- 调整融合策略：`road_surface_fusion/risk_fusion.py`
-- 调整画面样式：`road_surface_fusion/visualization.py`
+- `targets`
+- `surface_hazards`
+- `dynamic_risk`
+- `surface_risk`
+- `combined_risk`
+- `warning_text`
+- `surface_summary`
+
+JSONL schema 和写文件逻辑集中在：
+
+```text
+road_surface_fusion/structured_output.py
+```
+
+## 新增模块
+
+`road_surface_fusion/` 负责承载复杂逻辑，避免 `detect_3d_with_surface.py` 变得不像原脚本。
+
+主要文件：
+
+- `detector.py`：加载和调用路面坑洼、裂缝模型
+- `surface_analysis.py`：解析检测结果，估计位置、距离、严重程度和路面风险
+- `risk_fusion.py`：生成路面风险场，并提供 `max(dynamic_risk, surface_risk)` 融合规则
+- `visualization.py`：绘制主画面坑洼/裂缝结果和 BEV 路面风险点
+- `structured_output.py`：维护 JSONL schema 和按帧写出逻辑
+- `depth_runtime.py`：保留深度后端封装，当前融合入口仍沿用原脚本的 `DepthEstimator`
+
+`road_surface_fusion/__init__.py` 统一导出入口需要的对象：
+
+```python
+from road_surface_fusion import (
+    RoadSurfaceAnalyzer,
+    RoadSurfaceDetector,
+    RoadSurfaceRiskFuser,
+    RoadSurfaceVisualizer,
+    StructuredOutputWriter,
+    build_frame_record,
+)
+```
+
+## 运行方式
+
+在仓库目录运行：
+
+```powershell
+python detect_3d_with_surface.py --source lanechange.mp4 --no-view-img --nosave --device cpu
+```
+
+快速烟测 10 帧：
+
+```powershell
+python detect_3d_with_surface.py --source lanechange.mp4 --no-view-img --nosave --device cpu --max-frames 10
+```
+
+关闭 JSONL：
+
+```powershell
+python detect_3d_with_surface.py --source lanechange.mp4 --no-view-img --nosave --device cpu --max-frames 10 --no-save-jsonl
+```
+
+## 新增命令行参数
+
+融合版在原参数基础上新增：
+
+- `--road-model-dir`：路面模型目录，默认 `code/models`
+- `--road-conf-thres`：路面检测置信度阈值，默认 `0.25`
+- `--depth-backend`：深度后端参数，当前只允许 `depth-anything`
+- `--max-frames`：最多处理多少帧，默认不限制，方便烟测
+- `--save-jsonl`：开启 JSONL，默认开启
+- `--no-save-jsonl`：关闭 JSONL
+- `--structured-dir`：JSONL 输出子目录，默认 `structured`
+- `--no-view-img`：关闭 OpenCV 窗口，方便无界面测试
+
+注意：`--nosave` 只关闭图片/视频保存，不关闭 JSONL。要完全不输出 JSONL，需要同时传 `--no-save-jsonl`。
+
+## 模型和依赖
+
+路面模型默认从以下目录读取：
+
+```text
+code/models
+```
+
+目录下应包含：
+
+- `best.pt`
+- `best_night.pt`
+- `crack_best.pt`
+
+Depth Anything 仍沿用原脚本的深度估计逻辑。如果本地没有缓存模型，运行时可能访问 Hugging Face 下载或校验模型文件。无网络环境下需要提前准备好缓存。
+
+`requirements.txt` 当前包含 `-r requirements_common.txt`，老版 `check_requirements()` 对这种写法解析不稳定，所以融合入口启动检查改为：
+
+```python
+check_requirements('requirements_common.txt', exclude=('pycocotools', 'thop'))
+```
+
+这只影响 `detect_3d_with_surface.py`，不改 `detect_3d.py`。
+
+## 已验证
+
+已完成的本地检查：
+
+- `detect_3d_with_surface.py` 和 `road_surface_fusion/*.py` AST 语法解析通过
+- `python detect_3d_with_surface.py --help` 通过
+- `detect_3d.py` 与 `detect_3d_with_surface.py` 的 diff 约 155 行，差异集中在融合 hook、JSONL、参数和 `person=0`
+- 10 帧烟测通过：
+
+```powershell
+python detect_3d_with_surface.py --source lanechange.mp4 --no-view-img --nosave --device cpu --max-frames 10
+```
+
+烟测生成：
+
+```text
+runs/detect/exp7/structured/frame_results.jsonl
+```
+
+检查结果：
+
+- JSONL 共 10 行
+- 每行可以用 Python `json.loads` 正常解析
+- 每行包含 `targets`、`surface_hazards`、`dynamic_risk`、`surface_risk`、`combined_risk`、`warning_text`
+
+## 本次 fork 的边界
+
+本次改动没有做这些事：
+
+- 没有修改 `detect_3d.py`
+- 没有修改 `code/` 源码
+- 没有把融合入口改成新的 SDK 或服务
+- 没有新增 HTTP、WebSocket、REST API
+- 没有重构原始 YOLO、DeepSort、Depth Anything、BEV 保存流程
+
+这个 fork 只是在原 3D 风险脚本旁边新增一个路面融合入口，并把坑洼、裂缝、路面分析、可视化和 JSONL schema 放到 `road_surface_fusion/` 里维护。
+
+## 建议提交信息
+
+```text
+refactor: keep surface fusion entry close to detect_3d
+```
+
+或者：
+
+```text
+feat: add road surface fusion hooks and structured jsonl output
+```
