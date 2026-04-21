@@ -294,7 +294,7 @@ def Estimated_speed(locations, fps, width):
 # --------------------------
 # 主检测函数
 # --------------------------
-def detect(save_img=False):
+def detect(save_img=False,callback=None):
     source, weights, view_img, save_txt, imgsz = opt.source, opt.weights, opt.view_img, opt.save_txt, opt.img_size
     save_img = not opt.nosave and not source.endswith('.txt')
 
@@ -749,6 +749,8 @@ def detect(save_img=False):
             # 显示结果
             if view_img:
                 cv_show(str(p), im0, risk_img)
+            if callback is not None:
+                callback(im0,risk_img)
 
             # 保存结果
             if save_img:
