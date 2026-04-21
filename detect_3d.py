@@ -35,6 +35,7 @@ from bbox3d_utils import BBox3DEstimator, BirdEyeView
 from risk_field import RiskFieldEngine
 
 import sys
+
 sys.path.insert(0, './yolov10')
 
 palette = (2 ** 11 - 1, 2 ** 15 - 1, 2 ** 20 - 1)
@@ -101,16 +102,22 @@ def generate_bev_map(risk_sources, width_meter=20, depth_meter=100, map_w=400, m
     :param tracks: 车辆轨迹字典 {id: [(x, z), ...]}
     """
     # 1. 论文标定参数初始化
-    m = 1500; mu = 0.9; psi_delta = 1.457; psi_rho_tau = 1.000; DR_i = 0.5
+    m = 1500;
+    mu = 0.9;
+    psi_delta = 1.457;
+    psi_rho_tau = 1.000;
+    DR_i = 0.5
     R_common = calc_R_b(psi_delta, psi_rho_tau, mu)
     M_i = calc_M_b('car', m, v=0)
-    K_risk = 0.1; k1 = 1.5; k3 = 160
+    K_risk = 0.1;
+    k1 = 1.5;
+    k3 = 160
 
     # 2. 生成物理网格 (X: -10m~10m, Z: 0m~100m)
     # 显著增加横向分辨率，确保左右车道区分清晰
-    grid_res_w = 400 
-    grid_res_h = 400 
-    x_phi = np.linspace(-width_meter/2, width_meter/2, grid_res_w)
+    grid_res_w = 400
+    grid_res_h = 400
+    x_phi = np.linspace(-width_meter / 2, width_meter / 2, grid_res_w)
     y_phi = np.linspace(0, depth_meter, grid_res_h)
     x_phi, y_phi = np.meshgrid(x_phi, y_phi)
 
@@ -120,17 +127,18 @@ def generate_bev_map(risk_sources, width_meter=20, depth_meter=100, map_w=400, m
         x_obs, z_obs = src['x'], src['z']
         v_b = src['speed']
         car_type = src['type']
-        
+
         M_b = calc_M_b(car_type, m, v_b)
-        
+
         # 运动物体 (使用 yaw 作为方向)
         if v_b > 1e-3:
-            phi_v = src.get('yaw', 0.0) 
+            phi_v = src.get('yaw', 0.0)
             # 注意：调整角度方向以匹配网格坐标系
-            single_risk = SPE_v_bi(x_phi, y_phi, x_obs, z_obs, v_b, phi_v, K_risk, k1, k3, R_common, M_b, R_common, M_i, DR_i)
+            single_risk = SPE_v_bi(x_phi, y_phi, x_obs, z_obs, v_b, phi_v, K_risk, k1, k3, R_common, M_b, R_common, M_i,
+                                   DR_i)
         else:
             single_risk = SPE_r_ai(x_phi, y_phi, x_obs, z_obs, K_risk, k1, R_common, M_b, R_common, M_i, DR_i)
-            
+
         U_total += single_risk
 
     # 4. 归一化
@@ -139,7 +147,7 @@ def generate_bev_map(risk_sources, width_meter=20, depth_meter=100, map_w=400, m
         U_total_clipped = np.clip(U_total, 0, threshold)
         p30 = np.percentile(U_total_clipped, 30) if np.any(U_total_clipped) else 0.1
         if p30 == 0: p30 = 0.1
-        
+
         U_norm = np.zeros_like(U_total_clipped)
         mask_low = U_total_clipped <= p30
         mask_high = ~mask_low
@@ -153,13 +161,13 @@ def generate_bev_map(risk_sources, width_meter=20, depth_meter=100, map_w=400, m
     # 5. 绘制热力图
     plt.switch_backend('Agg')
     dpi = 100
-    fig = plt.figure(figsize=(map_w/dpi, map_h/dpi), dpi=dpi, frameon=False)
+    fig = plt.figure(figsize=(map_w / dpi, map_h / dpi), dpi=dpi, frameon=False)
     ax = plt.Axes(fig, [0., 0., 1., 1.])
     ax.set_axis_off()
     fig.add_axes(ax)
-    
-    ax.set_xlim(-width_meter/2, width_meter/2)
-    ax.set_ylim(0, depth_meter) # 0(近处)在下, 100(远处)在上
+
+    ax.set_xlim(-width_meter / 2, width_meter / 2)
+    ax.set_ylim(0, depth_meter)  # 0(近处)在下, 100(远处)在上
 
     # 配色方案
     levels = 100
@@ -167,7 +175,7 @@ def generate_bev_map(risk_sources, width_meter=20, depth_meter=100, map_w=400, m
     cmap_custom = LinearSegmentedColormap.from_list('high_contrast', colors, N=levels)
 
     ax.contourf(x_phi, y_phi, U_norm, levels=levels, cmap=cmap_custom, alpha=0.9, antialiased=True)
-    
+
     # 绘制轨迹
     if tracks:
         for src in risk_sources:
@@ -183,39 +191,39 @@ def generate_bev_map(risk_sources, width_meter=20, depth_meter=100, map_w=400, m
     # 标记风险源
     for src in risk_sources:
         # ax.scatter(src['x'], src['z'], c='red', s=150, edgecolors='white', linewidth=2, zorder=10)
-        
+
         # 使用“水滴型”标记 (Marker) 代替丑陋的箭头
         # 这种标记本身就带有方向性，看起来更像雷达界面
         # 使用自定义 MarkerPath 或者简单的 matplotlib 预设
         # '^' 是正三角形，我们可以旋转它来表示方向
-        
+
         x, z = src['x'], src['z']
-        yaw = src.get('yaw', 0) 
-        
+        yaw = src.get('yaw', 0)
+
         # 将 yaw 转换为度数 (matplotlib 旋转是逆时针为正，0度是向右)
         # 我们的坐标系：0度是Z轴正向(向上)
         # 所以转换公式：angle = -yaw_deg + 90
         yaw_deg = np.degrees(yaw)
         marker_angle = -yaw_deg + 90
-        
+
         # 使用自定义的 Marker 绘制带方向的圆点
         # 这里的 marker=(3, 0, angle) 表示 3边形(三角形)，0是风格，angle是旋转
         # 但 scatter 的 marker 旋转比较麻烦，不如直接用 RegularPolygon
-        
+
         # 方案B：绘制一个圆点 + 一个短线指示方向 (经典的雷达图画法)
         # 圆点：缩小尺寸，避免视觉上“粘连”
         # 原来 radius=0.4 -> 现在 0.3
         circle = plt.Circle((x, z), radius=0.3, fc='red', ec='white', lw=1.5, zorder=10)
         ax.add_patch(circle)
-        
+
         # 方向线 (从圆心伸出)
         line_len = 0.8
         dx = line_len * np.sin(yaw)
         dz = line_len * np.cos(yaw)
-        ax.plot([x, x+dx], [z, z+dz], color='white', lw=2, zorder=11)
+        ax.plot([x, x + dx], [z, z + dz], color='white', lw=2, zorder=11)
 
     fig.canvas.draw()
-    
+
     # 兼容不同版本 Matplotlib 获取图像数据
     try:
         if hasattr(fig.canvas, 'buffer_rgba'):
@@ -235,9 +243,10 @@ def generate_bev_map(risk_sources, width_meter=20, depth_meter=100, map_w=400, m
     except Exception as e:
         print(f"Error generating BEV map: {e}")
         risk_bgr = np.zeros((map_h, map_w, 3), dtype=np.uint8)
-        
+
     plt.close(fig)
     return risk_bgr
+
 
 # --------------------------
 # 辅助函数：边界框相对坐标计算
@@ -294,7 +303,7 @@ def Estimated_speed(locations, fps, width):
 # --------------------------
 # 主检测函数
 # --------------------------
-def detect(save_img=False):
+def detect(save_img=False, callback=None):
     source, weights, view_img, save_txt, imgsz = opt.source, opt.weights, opt.view_img, opt.save_txt, opt.img_size
     save_img = not opt.nosave and not source.endswith('.txt')
 
@@ -337,9 +346,9 @@ def detect(save_img=False):
     speed = []
     current_frame_speeds = {}  # 当前帧车辆速度（ID→speed）
     prev_centers = {}  # 【关键】存储上一帧车辆位置：{ID: (x, y)}
-    
+
     # === 新增：轨迹历史 ===
-    track_history = defaultdict(list) # ID -> list of (x, z)
+    track_history = defaultdict(list)  # ID -> list of (x, z)
     # ====================
 
     # Initialize
@@ -350,7 +359,7 @@ def detect(save_img=False):
     print("Initializing Depth Anything v2...")
     # 使用与 YOLO 相同的 device，但如果显存不足，DepthEstimator 会自动 fallback 到 CPU
     depth_estimator = DepthEstimator(model_size='small', device=device.type if device.type != 'cpu' else 'cpu')
-    
+
     # 3D BBox Estimator (使用已加载的相机参数)
     if cam_params:
         K = np.array([
@@ -360,25 +369,25 @@ def detect(save_img=False):
         ])
     else:
         # Fallback: 自动估算内参
-        vid_w, vid_h = 1920, 1080 # Default
+        vid_w, vid_h = 1920, 1080  # Default
         if not webcam and source.endswith(('.mp4', '.avi', '.mov')):
-             try:
-                 cap_tmp = cv2.VideoCapture(source)
-                 if cap_tmp.isOpened():
-                     vid_w = int(cap_tmp.get(cv2.CAP_PROP_FRAME_WIDTH))
-                     vid_h = int(cap_tmp.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                     cap_tmp.release()
-             except:
-                 pass
-        
+            try:
+                cap_tmp = cv2.VideoCapture(source)
+                if cap_tmp.isOpened():
+                    vid_w = int(cap_tmp.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    vid_h = int(cap_tmp.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    cap_tmp.release()
+            except:
+                pass
+
         # 估算焦距 (假设标准镜头)
-        est_f = vid_w * 1.0 
+        est_f = vid_w * 1.0
         est_cx = vid_w / 2
         est_cy = vid_h / 2
-        
+
         K = np.array([[est_f, 0, est_cx], [0, est_f, est_cy], [0, 0, 1]])
         print(f"Warning: No camera params found. Using estimated intrinsics for {vid_w}x{vid_h}")
-        
+
     bbox3d_estimator = BBox3DEstimator(camera_matrix=K)
 
     half = device.type != 'cpu'
@@ -392,7 +401,8 @@ def detect(save_img=False):
     classify = False
     if classify:
         modelc = load_classifier(name='resnet101', n=2)
-        modelc.load_state_dict(torch.load('weights/resnet101.pt', map_location=device, weights_only=False)['model']).to(device).eval()
+        modelc.load_state_dict(torch.load('weights/resnet101.pt', map_location=device, weights_only=False)['model']).to(
+            device).eval()
 
     # 数据加载器
     vid_path, vid_writer = None, None
@@ -409,26 +419,21 @@ def detect(save_img=False):
     # 图像显示函数（拼接原画面与风险场）
     def cv_show(p, im0, risk_img=None):
         height, width = im0.shape[:2]
-        
-        # 放大整体显示比例
-        display_width = 1000
-        a = display_width / width  
-        size = (display_width, int(height * a))
+        a = 800 / width  # 缩放比例
+        size = (800, int(height * a))
         img_resize = cv2.resize(im0, size, interpolation=cv2.INTER_AREA)
 
         if risk_img is not None:
-            # 增加 risk_img 的显示比例，使其与原图更加均衡，达到“居中”放大的视觉感
+            # 增加 risk_img 的显示比例
+            # 原始逻辑：保持 risk_img 纵横比，缩放高度匹配 img_resize
+            # 新逻辑：强制设置 risk_img 宽度为 img_resize 宽度的 1/2 (或者自定义像素值，比如 500)
+
             target_h = img_resize.shape[0]
-            target_w = 800 # 进一步增加宽度，从600提升到800
-            
+            target_w = 600  # 增加宽度，使风险图更大更清晰
+
             risk_resize = cv2.resize(risk_img, (target_w, target_h), interpolation=cv2.INTER_AREA)
-            
-            # 在两个图之间增加一个细微的黑边分隔，提升视觉层次感
-            divider = np.zeros((target_h, 10, 3), dtype=np.uint8)
-            combined_img = np.hstack((img_resize, divider, risk_resize))  
-            
-            # 为了让整体看起来更居中，我们可以给 combined_img 增加外边距（Padding）
-            # 或者直接全屏显示（如果支持）
+
+            combined_img = np.hstack((img_resize, risk_resize))  # 横向拼接
             cv2.imshow(p, combined_img)
         else:
             cv2.imshow(p, img_resize)
@@ -437,15 +442,15 @@ def detect(save_img=False):
     # 模型预热
     if device.type != 'cpu':
         model(torch.zeros(1, 3, imgsz, imgsz).to(device).type_as(next(model.parameters())))
-        
+
     # Initialize Risk Field Engine & BEV Visualizer
     # 物理范围：宽16m，深25m，分辨率10cm (0.1m)
     risk_engine = RiskFieldEngine(width_meter=16, depth_meter=25, grid_res=0.1)
-    
+
     # BEV 视图：宽400px，高600px (对应16m x 24m => 25 px/m)
     # 稍微调整高度以匹配比例
     bev_visualizer = BirdEyeView(size=(400, 625), scale=25, camera_height=1.5)
-    
+
     t0 = time.time()
 
     # 遍历视频帧
@@ -473,7 +478,7 @@ def detect(save_img=False):
         # 注意：im0s 可能是列表（多摄像头）或单张图
         # 这里假设是单张图处理，如果是多路视频可能需要遍历
         curr_im0_depth = im0s.copy() if not webcam else im0s[0].copy()
-        
+
         # 性能优化：如果显存紧张，可以隔帧运行深度估计
         # 目前每帧都跑
         depth_map = depth_estimator.estimate_depth(curr_im0_depth)
@@ -502,32 +507,32 @@ def detect(save_img=False):
                 bbox_xywh = []
                 confs = []
                 classes_list = []
-                bbox_3d_list = [] # 存放新的 3D pose
-                
+                bbox_3d_list = []  # 存放新的 3D pose
+
                 img_h, img_w, _ = im0.shape
                 for *xyxy, conf, cls in det:
                     x_c, y_c, bbox_w, bbox_h = bbox_rel(img_w, img_h, *xyxy)
                     bbox_xywh.append([x_c, y_c, bbox_w, bbox_h])
                     confs.append([conf.item()])
                     classes_list.append([cls.item()])
-                    
+
                     # === 新增：基于 Depth Anything 的 3D 估算 ===
                     # 获取深度值
                     # xyxy 是 tensor，转 numpy
                     xyxy_cpu = [x.item() for x in xyxy]
                     depth_val = depth_estimator.get_depth_in_region(depth_map, xyxy_cpu, method='median')
-                    
+
                     # 估算 3D 框 (此时没有 ID)
                     cls_name = names[int(cls)]
                     box_3d = bbox3d_estimator.estimate_3d_box(xyxy_cpu, depth_val, cls_name)
-                    
+
                     # 构造 DeepSort 需要的 pose (X, Z, L, W, H, Yaw)
                     pose = (
-                        box_3d['location'][0], # X
-                        box_3d['location'][2], # Z (深度)
-                        box_3d['dimensions'][2], # L
-                        box_3d['dimensions'][1], # W
-                        box_3d['dimensions'][0], # H
+                        box_3d['location'][0],  # X
+                        box_3d['location'][2],  # Z (深度)
+                        box_3d['dimensions'][2],  # L
+                        box_3d['dimensions'][1],  # W
+                        box_3d['dimensions'][0],  # H
                         box_3d['orientation']  # Yaw
                     )
                     bbox_3d_list.append(pose)
@@ -548,18 +553,18 @@ def detect(save_img=False):
                 # ---------------------------------------------------------
                 # NEW LOGIC: Multi-stage Processing for Demo Visualization
                 # ---------------------------------------------------------
-                
+
                 # Stage 1: Data Collection & 3D Refinement
                 risk_sources = []
-                
+
                 for out in valid_outputs:
                     x1, y1, x2, y2, current_id, cls_id = out
-                    
+
                     # Validation
                     if cls_id < 0 or cls_id >= len(names): continue
                     current_class = names[int(cls_id)]
                     car_type = 'truck' if current_class in ['bus', 'truck'] else 'car'
-                    
+
                     # Confidence
                     match_idx = np.where(classes.numpy().flatten() == cls_id)[0]
                     conf = confss[match_idx[0]].item() if len(match_idx) > 0 else 0.0
@@ -573,109 +578,109 @@ def detect(save_img=False):
                         label=label, color=[0, 0, 255], line_thickness=3,
                         name=current_class
                     )
-                    
+
                     # 3D Tracking & Refinement
                     track = next((t for t in deepsort.tracker.tracks if t.track_id == current_id), None)
                     if track and track.pose_3d is not None:
-                         X_raw, Z_raw, L, W, H, Yaw_raw = track.pose_3d
-                         
-                         # Kalman Filter Refinement
-                         box_3d_raw = {
-                             'location': np.array([X_raw, 0, Z_raw]),
-                             'dimensions': np.array([H, W, L]),
-                             'orientation': Yaw_raw,
-                             'class_name': current_class
-                         }
-                         
-                         if hasattr(bbox3d_estimator, 'refine_box_3d'):
+                        X_raw, Z_raw, L, W, H, Yaw_raw = track.pose_3d
+
+                        # Kalman Filter Refinement
+                        box_3d_raw = {
+                            'location': np.array([X_raw, 0, Z_raw]),
+                            'dimensions': np.array([H, W, L]),
+                            'orientation': Yaw_raw,
+                            'class_name': current_class
+                        }
+
+                        if hasattr(bbox3d_estimator, 'refine_box_3d'):
                             box_3d_refined = bbox3d_estimator.refine_box_3d(box_3d_raw, current_id)
                             X, _, Z = box_3d_refined['location']
                             Yaw = box_3d_refined['orientation']
-                         else:
+                        else:
                             X, Z, Yaw = X_raw, Z_raw, Yaw_raw
-                            
-                         # Speed
-                         src_speed = current_frame_speeds.get(current_id, 0.0)
-                         
-                         # Prepare Draw Data
-                         box_3d_draw = {
-                             'bbox_2d': [x1, y1, x2, y2],
-                             'location': np.array([X, 0, Z]), 
-                             'dimensions': np.array([H, W, L]),
-                             'orientation': Yaw,
-                             'class_name': current_class,
-                             'object_id': current_id,
-                             'depth_value': (Z - 1.0) / 9.0 
-                         }
-                         
-                         # Add to list
-                         risk_sources.append({
-                             'id': current_id,
-                             'x': X, 'z': Z, 'speed': src_speed, 'yaw': Yaw,
-                             'type': car_type, 'dims': np.array([H, W, L]),
-                             'box_3d_draw': box_3d_draw,
-                             'xyxy': [x1, y1, x2, y2],
-                             'conf': conf,
-                             'class_name': current_class
-                         })
-                         
-                         # Update History
-                         track_history[current_id].append((X, Z))
-                         if len(track_history[current_id]) > 50:
-                             track_history[current_id].pop(0)
-                             
-                         current_frame_distances[current_id] = round(Z, 2)
+
+                        # Speed
+                        src_speed = current_frame_speeds.get(current_id, 0.0)
+
+                        # Prepare Draw Data
+                        box_3d_draw = {
+                            'bbox_2d': [x1, y1, x2, y2],
+                            'location': np.array([X, 0, Z]),
+                            'dimensions': np.array([H, W, L]),
+                            'orientation': Yaw,
+                            'class_name': current_class,
+                            'object_id': current_id,
+                            'depth_value': (Z - 1.0) / 9.0
+                        }
+
+                        # Add to list
+                        risk_sources.append({
+                            'id': current_id,
+                            'x': X, 'z': Z, 'speed': src_speed, 'yaw': Yaw,
+                            'type': car_type, 'dims': np.array([H, W, L]),
+                            'box_3d_draw': box_3d_draw,
+                            'xyxy': [x1, y1, x2, y2],
+                            'conf': conf,
+                            'class_name': current_class
+                        })
+
+                        # Update History
+                        track_history[current_id].append((X, Z))
+                        if len(track_history[current_id]) > 50:
+                            track_history[current_id].pop(0)
+
+                        current_frame_distances[current_id] = round(Z, 2)
 
                 # Stage 2: Risk Field Calculation (Global)
                 risk_img = None
                 target_h = im0.shape[0]
                 target_w = 600
-                
+
                 # Initialize Accumulators
                 total_risk_map = np.zeros((risk_engine.grid_h, risk_engine.grid_w))
-                vis_risk_map = np.zeros((risk_engine.grid_h, risk_engine.grid_w)) # For visualization (larger sigma)
-                
-                ego_v_x, ego_v_z = 0, 5 # Ego velocity (m/s)
-                current_weather_factor = 1.0 
-                
+                vis_risk_map = np.zeros((risk_engine.grid_h, risk_engine.grid_w))  # For visualization (larger sigma)
+
+                ego_v_x, ego_v_z = 0, 5  # Ego velocity (m/s)
+                current_weather_factor = 1.0
+
                 max_scf = 0.0
                 max_risk_id = None
-                max_dist_m = 10.0 # Track max distance for Dynamic Zoom
-                
+                max_dist_m = 10.0  # Track max distance for Dynamic Zoom
+
                 frame_scf_values = []
 
                 if len(risk_sources) > 0:
                     for src in risk_sources:
                         # Physics Calculation
                         t_x, t_z = src['x'], src['z']
-                        t_speed = src['speed'] / 3.6 # km/h -> m/s
+                        t_speed = src['speed'] / 3.6  # km/h -> m/s
                         t_yaw = src['yaw']
-                        
+
                         # Update max distance
                         if t_z > max_dist_m: max_dist_m = t_z
-                        
+
                         t_v_x = t_speed * np.sin(t_yaw)
                         t_v_z = t_speed * np.cos(t_yaw)
-                        
+
                         # SCF Calculation (Scientific)
                         scf, ego_f, target_f, overlap = risk_engine.calculate_scf(
                             (0, 0), (t_x, t_z),
                             (ego_v_x, ego_v_z), (t_v_x, t_v_z),
                             weather_factor=current_weather_factor
                         )
-                        
+
                         # Visualization Field (Artistic - Larger)
                         vis_target_f = risk_engine.get_visualization_field(
-                            t_x, t_z, t_v_x, t_v_z, 
-                            sigma_x=1.8, sigma_z=5.0, # Much larger for "Radar" feel
+                            t_x, t_z, t_v_x, t_v_z,
+                            sigma_x=1.8, sigma_z=5.0,  # Much larger for "Radar" feel
                             weather_factor=current_weather_factor
                         )
-                        
+
                         src['scf'] = scf
                         frame_scf_values.append(scf)
                         total_risk_map += target_f
-                        vis_risk_map = np.maximum(vis_risk_map, vis_target_f) # Use max to avoid over-saturation
-                        
+                        vis_risk_map = np.maximum(vis_risk_map, vis_target_f)  # Use max to avoid over-saturation
+
                         if scf > max_scf:
                             max_scf = scf
                             max_risk_id = src['id']
@@ -690,26 +695,26 @@ def detect(save_img=False):
 
                 # Stage 4: BEV Generation (Demo Mode)
                 # Always generate BEV even if no sources, to show empty grid
-                
+
                 # Update Dynamic Zoom
                 bev_visualizer.update_scale(max_dist_m)
                 bev_visualizer.reset()
-                
+
                 if len(risk_sources) > 0:
                     # 1. Draw Trajectories & Future Sectors (Background)
                     for src in risk_sources:
                         # Trajectory Fading
                         hist = track_history[src['id']]
                         bev_visualizer.draw_trajectory_fading(hist)
-                        
+
                         # Future Sector
                         bev_visualizer.draw_future_sector(
-                            src['x'], src['z'], 
-                            src['speed']/3.6, 
-                            src['yaw'], 
+                            src['x'], src['z'],
+                            src['speed'] / 3.6,
+                            src['yaw'],
                             risk_level=src.get('scf', 0)
                         )
-                    
+
                     # 2. Draw Vehicles
                     for src in risk_sources:
                         box_3d_bev = {
@@ -718,38 +723,34 @@ def detect(save_img=False):
                             'dimensions': src['dims'],
                             'orientation': src['yaw'],
                             'object_id': src['id'],
-                            'depth_value': (src['z'] - 1.0) / 9.0 
+                            'depth_value': (src['z'] - 1.0) / 9.0
                         }
-                        bev_visualizer.draw_box(box_3d_bev, risk_score=src.get('scf', 0))
-                        
+                        bev_visualizer.draw_box(box_3d_bev)
+
                     # 3. Draw Risk Heatmap (Glowing Overlay)
                     # Use vis_risk_map for better visual
                     total_risk_map_flipped = cv2.flip(vis_risk_map, 0)
                     bev_visualizer.draw_risk_heatmap(total_risk_map_flipped)
-                    
+
                     # 4. HUD
-                    bev_visualizer.draw_hud(max_scf, max_risk_id, ego_speed=ego_v_z*3.6)
-                    
+                    bev_visualizer.draw_hud(max_scf, max_risk_id, ego_speed=ego_v_z * 3.6)
+
                     # Log
                     avg_scf = sum(frame_scf_values) / len(frame_scf_values) if frame_scf_values else 0.0
                     try:
                         with open('vehicle_info.txt', 'a') as f:
                             for src in risk_sources:
-                                 f.write(f"Frame: {frame}, ID: {src['id']}, Type: {src['type']}, X: {src['x']:.2f}, Z: {src['z']:.2f}, Speed: {src['speed']:.2f}, SCF: {src.get('scf', 0):.4f}, Avg_SCF: {avg_scf:.4f}\n")
+                                f.write(
+                                    f"Frame: {frame}, ID: {src['id']}, Type: {src['type']}, X: {src['x']:.2f}, Z: {src['z']:.2f}, Speed: {src['speed']:.2f}, SCF: {src.get('scf', 0):.4f}, Avg_SCF: {avg_scf:.4f}\n")
                     except Exception as e:
                         print(f"Error writing log: {e}")
-                
+
                 # Get Image
                 risk_img = bev_visualizer.get_image()
-                
+
                 # Resize
                 if risk_img.shape[0] != target_h or risk_img.shape[1] != target_w:
                     risk_img = cv2.resize(risk_img, (target_w, target_h))
-                    
-                # To make sure it really fits in the center visually we can draw the top part black if needed
-                # But since the radar origin has been adjusted in BirdEyeView, it should naturally sit centered now.
-
-
 
             # 打印耗时
             print(f'{s}Done. ({t2 - t1:.3f}s)')
@@ -757,6 +758,8 @@ def detect(save_img=False):
             # 显示结果
             if view_img:
                 cv_show(str(p), im0, risk_img)
+            if callback is not None:
+                callback(im0, risk_img)
 
             # 保存结果
             if save_img:
