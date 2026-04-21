@@ -1,0 +1,66 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# Build / packaging
+build/
+dist/
+*.egg-info/
+pip-wheel-metadata/
+
+# Test / coverage / lint cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+
+# IDE / editor
+.idea/
+.vscode/
+*.iml
+
+# Environment files
+.env
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Runtime outputs
+runs/
+outputs/
+output/
+results/
+logs/
+log/
+*.log
+
+# Local test data and temporary inputs
+test/
+code/test/
+test_media/
+local_media/
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Local videos for inference testing
+*.avi
+*.mkv
+*.mov
+*.mp4
+*.webm

@@ -1,35 +1,11 @@
-# 核心科学计算库
-numpy>=1.23.5
-opencv-python>=4.8.0
-scipy>=1.10.0
-pandas>=2.0.0
-matplotlib>=3.7.0
-seaborn>=0.12.0
-Pillow>=9.5.0
+# GPU install notes
+# 1. Install a CUDA-enabled PyTorch build that matches the target machine's Python
+#    version and local CUDA runtime first. Example for CUDA 12.1:
+#    pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+# 2. Then install the remaining project dependencies:
+#    pip install -r requirements_gpu.txt
+#
+# torch/torchvision are intentionally not pinned here because different teammates may
+# use different CUDA versions. This avoids one machine's setup breaking another's.
 
-# 深度学习相关 (建议使用 conda 或 pip 命令单独安装 PyTorch GPU 版)
-# torch>=2.0.0
-# torchvision>=0.15.0
-# torchaudio>=2.0.0
-
-# YOLO & DeepSORT 依赖
-tqdm>=4.65.0
-PyYAML>=6.0
-requests>=2.31.0
-psutil>=5.9.0
-thop>=0.1.1  # FLOPS 计算
-ultralytics>=8.2.0  # YOLOv8/v10 核心库
-
-# Transformer / HuggingFace (用于 Depth Anything)
-transformers>=4.30.0
-huggingface_hub>=0.16.0
-safetensors>=0.3.0
-timm>=0.9.0  # 视觉模型库
-
-# 其他工具
-tensorboard>=2.13.0
-colorama>=0.4.6
-easydict>=1.10
-filterpy>=1.4.5  # 卡尔曼滤波
-lapx>=0.5.5      # 线性分配问题求解 (替代 lap，解决 Windows 编译问题)
-scikit-image>=0.21.0
+-r requirements_common.txt
