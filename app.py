@@ -58,249 +58,354 @@ if 'current_risk_img' not in st.session_state:
 
 
 def local_css():
-    st.markdown("""
-    <style>
-    .stApp {
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-    }
+    # 读取并编码图片
+    def get_base64_image(path):
+        with open(path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    
+    global logo_base64
+    logo_path = os.path.join("picture", "logo.png")
+    bg_path = os.path.join("picture", "background2.jpg")
+    
+    logo_base64 = get_base64_image(logo_path)
+    bg_base64 = get_base64_image(bg_path)
+    
+    st.markdown(
+        '''
+        <style>
+        body {
+            background-image: url('data:image/jpg;base64,%s');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+        }
+        
+        .stApp {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+        }
 
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: #00d4ff;
-        text-align: center;
-        padding: 1rem 0;
-        text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
-    }
+        .header-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin-right: 1rem;
+            border-radius: 50%%;
+            box-shadow: 0 0 20px rgba(0, 153, 204, 0.5);
+        }
+        
+        .main-header {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #0099cc;
+            text-align: center;
+            padding: 1rem 0;
+            text-shadow: 0 0 20px rgba(0, 153, 204, 0.3);
+        }
 
-    .sub-header {
-        font-size: 1.2rem;
-        color: #e0e0e0;
-        text-align: center;
-        margin-bottom: 1.5rem;
-    }
+        .sub-header {
+            font-size: 1.2rem;
+            color: #333333;
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
 
-    .video-card {
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 15px;
-        padding: 1rem;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(10px);
-    }
+        .video-card {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 1rem;
+            border: 1px solid rgba(0, 153, 204, 0.2);
+            backdrop-filter: blur(5px);
+            box-shadow: 0 4px 30px rgba(0, 153, 204, 0.1);
+        }
 
-    .risk-card {
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 15px;
-        padding: 1rem;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(10px);
-    }
+        .risk-card {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 1rem;
+            border: 1px solid rgba(0, 153, 204, 0.2);
+            backdrop-filter: blur(5px);
+            box-shadow: 0 4px 30px rgba(0, 153, 204, 0.1);
+        }
 
-    .sidebar .stSidebar {
-        background: rgba(20, 30, 50, 0.95);
-        border-right: 1px solid rgba(255, 255, 255, 0.1);
-    }
+        .sidebar .stSidebar {
+            background: rgba(245, 247, 250, 0.95);
+            border-right: 1px solid rgba(0, 153, 204, 0.2);
+        }
 
-    .stButton > button {
-        width: 100%;
-        border-radius: 10px;
-        height: 3rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-    }
+        .stButton > button {
+            width: 100%%;
+            border-radius: 10px;
+            height: 3rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
 
-    .start-btn > button {
-        background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
-        color: white;
-        border: none;
-    }
+        .start-btn > button {
+            background: linear-gradient(135deg, #0099cc 0%%, #0077aa 100%%);
+            color: white;
+            border: none;
+        }
 
-    .start-btn > button:hover {
-        background: linear-gradient(135deg, #00e5ff 0%, #00b3e6 100%);
-        box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
-    }
+        .start-btn > button:hover {
+            background: linear-gradient(135deg, #00aacc 0%%, #0088bb 100%%);
+            box-shadow: 0 0 20px rgba(0, 153, 204, 0.5);
+        }
 
-    .stop-btn > button {
-        background: linear-gradient(135deg, #ff4757 0%, #c0392b 100%);
-        color: white;
-        border: none;
-    }
+        .stop-btn > button {
+            background: linear-gradient(135deg, #ff4757 0%%, #c0392b 100%%);
+            color: white;
+            border: none;
+        }
 
-    .stop-btn > button:hover {
-        background: linear-gradient(135deg, #ff6b7a 0%, #e74c3c 100%);
-        box-shadow: 0 0 20px rgba(255, 71, 87, 0.5);
-    }
+        .stop-btn > button:hover {
+            background: linear-gradient(135deg, #ff6b7a 0%%, #e74c3c 100%%);
+            box-shadow: 0 0 20px rgba(255, 71, 87, 0.5);
+        }
 
-    .config-section {
-        background: rgba(255, 255, 255, 0.03);
-        border-radius: 10px;
-        padding: 1rem;
-        margin-bottom: 1rem;
-        border-left: 3px solid #00d4ff;
-    }
+        .config-section {
+            background: rgba(240, 245, 250, 0.8);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-left: 3px solid #0099cc;
+        }
 
-    .metric-card {
-        background: rgba(255, 255, 255, 0.08);
-        border-radius: 10px;
-        padding: 1rem;
-        text-align: center;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
+        .metric-card {
+            background: rgba(240, 245, 250, 0.8);
+            border-radius: 10px;
+            padding: 1rem;
+            text-align: center;
+            border: 1px solid rgba(0, 153, 204, 0.2);
+            transition: all 0.3s ease;
+        }
 
-    .metric-value {
-        font-size: 2rem;
-        font-weight: 700;
-        color: #00d4ff;
-    }
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 153, 204, 0.2);
+        }
 
-    .metric-label {
-        font-size: 0.9rem;
-        color: #a0a0a0;
-        margin-top: 0.5rem;
-    }
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #0099cc;
+        }
 
-    .alert-high {
-        background: linear-gradient(135deg, rgba(255, 71, 87, 0.2) 0%, rgba(192, 57, 43, 0.2) 100%);
-        border-left: 4px solid #ff4757;
-        border-radius: 8px;
-        padding: 1rem;
-        margin-bottom: 0.5rem;
-    }
+        .metric-label {
+            font-size: 0.9rem;
+            color: #666666;
+            margin-top: 0.5rem;
+        }
 
-    .alert-medium {
-        background: linear-gradient(135deg, rgba(255, 193, 7, 0.2) 0%, rgba(243, 156, 18, 0.2) 100%);
-        border-left: 4px solid #ffc107;
-        border-radius: 8px;
-        padding: 1rem;
-        margin-bottom: 0.5rem;
-    }
+        .alert-high {
+            background: linear-gradient(135deg, rgba(255, 71, 87, 0.1) 0%%, rgba(192, 57, 43, 0.1) 100%%);
+            border-left: 4px solid #ff4757;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            animation: slideIn 0.3s ease;
+        }
 
-    .alert-low {
-        background: linear-gradient(135deg, rgba(46, 213, 115, 0.2) 0%, rgba(39, 174, 96, 0.2) 100%);
-        border-left: 4px solid #2ed573;
-        border-radius: 8px;
-        padding: 1rem;
-        margin-bottom: 0.5rem;
-    }
+        .alert-medium {
+            background: linear-gradient(135deg, rgba(255, 193, 7, 0.1) 0%%, rgba(243, 156, 18, 0.1) 100%%);
+            border-left: 4px solid #ffc107;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            animation: slideIn 0.3s ease;
+        }
 
-    .status-indicator {
-        display: inline-block;
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        margin-right: 8px;
-    }
+        .alert-low {
+            background: linear-gradient(135deg, rgba(46, 213, 115, 0.1) 0%%, rgba(39, 174, 96, 0.1) 100%%);
+            border-left: 4px solid #2ed573;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            animation: slideIn 0.3s ease;
+        }
 
-    .status-active {
-        background: #2ed573;
-        animation: pulse 1.5s infinite;
-    }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
 
-    .status-inactive {
-        background: #636e72;
-    }
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%%;
+            margin-right: 8px;
+        }
 
-    @keyframes pulse {
-        0% { box-shadow: 0 0 0 0 rgba(46, 213, 115, 0.7); }
-        70% { box-shadow: 0 0 0 10px rgba(46, 213, 115, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(46, 213, 115, 0); }
-    }
+        .status-active {
+            background: #2ed573;
+            animation: pulse 1.5s infinite;
+        }
 
-    .divider {
-        height: 1px;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-        margin: 1rem 0;
-    }
+        .status-inactive {
+            background: #636e72;
+        }
 
-    .stSelectbox > div > div {
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 8px;
-    }
+        @keyframes pulse {
+            0%% { box-shadow: 0 0 0 0 rgba(46, 213, 115, 0.7); }
+            70%% { box-shadow: 0 0 0 10px rgba(46, 213, 115, 0); }
+            100%% { box-shadow: 0 0 0 0 rgba(46, 213, 115, 0); }
+        }
 
-    .stSlider > div > div > div {
-        background: rgba(255, 255, 255, 0.1);
-    }
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(0, 153, 204, 0.3), transparent);
+            margin: 1rem 0;
+        }
 
-    .image-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 10px;
-        padding: 0.5rem;
-    }
+        .stSelectbox > div > div {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            border: 1px solid rgba(0, 153, 204, 0.2);
+        }
 
-    .image-container img {
-        max-height: 300px;
-        object-fit: contain;
-    }
+        .stSlider > div > div > div {
+            background: rgba(0, 153, 204, 0.2);
+        }
 
-    .risk-view-container {
-        height: 280px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 10px;
-        padding: 0.5rem;
-        overflow: hidden;
-    }
+        .image-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(240, 245, 250, 0.8);
+            border-radius: 10px;
+            padding: 0.5rem;
+        }
 
-    .risk-view-container img {
-        max-height: 260px;
-        width: auto;
-        height: auto;
-        object-fit: contain;
-    }
+        .image-container img {
+            max-height: 300px;
+            object-fit: contain;
+        }
 
-    section[data-testid="stImage"] {
-        max-height: 300px;
-        overflow: hidden;
-    }
+        .risk-view-container {
+            height: 280px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(240, 245, 250, 0.8);
+            border-radius: 10px;
+            padding: 0.5rem;
+            overflow: hidden;
+        }
 
-    section[data-testid="stImage"] img {
-        max-height: 300px !important;
-        width: auto !important;
-        height: auto !important;
-        object-fit: contain !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+        .risk-view-container img {
+            max-height: 260px;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+        }
+
+        section[data-testid="stImage"] {
+            max-height: 300px;
+            overflow: hidden;
+        }
+
+        section[data-testid="stImage"] img {
+            max-height: 300px !important;
+            width: auto !important;
+            height: auto !important;
+            object-fit: contain !important;
+        }
+        
+        /* 装饰元素 */
+        .decorative-element {
+            position: absolute;
+            border-radius: 50%%;
+            background: radial-gradient(circle, rgba(0, 153, 204, 0.05) 0%%, transparent 70%%);
+            z-index: -1;
+        }
+        
+        .decorative-element-1 {
+            top: 10%%;
+            left: 5%%;
+            width: 300px;
+            height: 300px;
+        }
+        
+        .decorative-element-2 {
+            bottom: 10%%;
+            right: 5%%;
+            width: 400px;
+            height: 400px;
+        }
+        
+        .decorative-element-3 {
+            top: 50%%;
+            left: 50%%;
+            transform: translate(-50%%, -50%%);
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(0, 153, 204, 0.03) 0%%, transparent 70%%);
+        }
+        </style>
+        ''' % bg_base64, 
+        unsafe_allow_html=True
+    )
+
+    # 添加装饰元素
+    st.markdown(
+        """
+        <div class="decorative-element decorative-element-1"></div>
+        <div class="decorative-element decorative-element-2"></div>
+        <div class="decorative-element decorative-element-3"></div>
+        """, unsafe_allow_html=True)
 
 
 st.set_page_config(page_title="驭安DriveSafe", layout="wide", page_icon="🚗")
 
 local_css()
 
-st.markdown('<h1 class="main-header">🚗 驭安DriveSafe 主动安全预警系统</h1>', unsafe_allow_html=True)
-st.markdown('<p class="sub-header">基于YOLOv10和深度学习的安全驾驶辅助系统</p>', unsafe_allow_html=True)
+# 显示带logo的标题
+st.markdown(f"""
+<div class="header-container">
+    <img src="data:image/png;base64,{logo_base64}" class="logo">
+    <div>
+        <h1 class="main-header">驭安DriveSafe 主动安全预警系统</h1>
+        <p class="sub-header">基于YOLOv10和深度学习的安全驾驶辅助系统</p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-col_video, col_risk = st.columns([3, 2])
+col_main = st.columns([3, 2])
 
-with col_video:
+with col_main[0]:
+    # 视频流区域
     st.markdown('<div class="video-card">', unsafe_allow_html=True)
     st.subheader("📹 实时视频流")
     video_placeholder = st.empty()
     st.markdown('</div>', unsafe_allow_html=True)
-
-with col_risk:
-    st.markdown('<div class="risk-card">', unsafe_allow_html=True)
-    st.subheader("⚠️ 风险场视图")
-
-    risk_image_placeholder = st.empty()
-
-    st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
-
+    
+    # 实时统计区域
+    st.markdown('<div class="video-card" style="margin-top: 1rem;">', unsafe_allow_html=True)
     st.subheader("📊 实时统计")
-
+    
     col_stats1, col_stats2, col_stats3 = st.columns(3)
-
+    
     with col_stats1:
         st.markdown('<div class="metric-card">', unsafe_allow_html=True)
         st.markdown(f'<div class="metric-value" id="total_detections">{st.session_state.stats["total_detections"]}</div>', unsafe_allow_html=True)
         st.markdown('<div class="metric-label">检测目标</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
-
+    
     with col_stats2:
         st.markdown('<div class="metric-card">', unsafe_allow_html=True)
         risk_level = "高" if st.session_state.stats["current_risk"] > 0.7 else "中" if st.session_state.stats["current_risk"] > 0.4 else "低"
@@ -308,19 +413,31 @@ with col_risk:
         st.markdown(f'<div class="metric-value" id="risk_level" style="color: {risk_color}">{risk_level}</div>', unsafe_allow_html=True)
         st.markdown('<div class="metric-label">风险等级</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
-
+    
     with col_stats3:
         st.markdown('<div class="metric-card">', unsafe_allow_html=True)
         st.markdown(f'<div class="metric-value" id="high_risk_count">{st.session_state.stats["high_risk_count"]}</div>', unsafe_allow_html=True)
         st.markdown('<div class="metric-label">高危目标</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
+with col_main[1]:
+    # 风险场视图
+    st.markdown('<div class="risk-card">', unsafe_allow_html=True)
+    st.subheader("⚠️ 风险场视图")
+    
+    # 创建固定大小的容器
+    st.markdown('<div style="width: 100%; height: 200px; display: flex; justify-content: center; align-items: center; background: rgba(0, 0, 0, 0.3); border-radius: 10px; overflow: hidden;">', unsafe_allow_html=True)
+    risk_image_placeholder = st.empty()
+    st.markdown('</div>', unsafe_allow_html=True)
+    
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
-
+    
+    # 实时警报
     st.subheader("🚨 实时警报")
-
+    
     alert_container = st.container()
-
+    
     with alert_container:
         if st.session_state.risk_alerts:
             for alert in st.session_state.risk_alerts[-3:]:
@@ -350,7 +467,7 @@ with col_risk:
                     """, unsafe_allow_html=True)
         else:
             st.info("暂无警报信息")
-
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
 with st.sidebar:
@@ -490,7 +607,8 @@ with st.sidebar:
 
             if risk_img is not None:
                 risk_rgb = cv2.cvtColor(risk_img, cv2.COLOR_BGR2RGB)
-                risk_image_placeholder.image(risk_rgb, channels="RGB", use_container_width=True)
+                # 调整风险场图像大小，保持纵横比
+                risk_image_placeholder.image(risk_rgb, channels="RGB", use_container_width=True, clamp=True)
 
             if detections is not None:
                 st.session_state.stats['total_detections'] = len(detections)
@@ -534,6 +652,13 @@ with st.sidebar:
                 st.session_state.stats['medium_risk_count'] = medium_risk
                 st.session_state.stats['low_risk_count'] = low_risk
                 st.session_state.stats['current_risk'] = max(high_risk * 0.8, medium_risk * 0.5)
+            else:
+                # 重置统计数据
+                st.session_state.stats['total_detections'] = 0
+                st.session_state.stats['high_risk_count'] = 0
+                st.session_state.stats['medium_risk_count'] = 0
+                st.session_state.stats['low_risk_count'] = 0
+                st.session_state.stats['current_risk'] = 0.0
 
             if frame_idx is not None and total_frames is not None:
                 progress = (frame_idx + 1) / total_frames
