@@ -143,3 +143,84 @@ class RoadSurfaceVisualizer:
         if danger_level == 1:
             return "LOW"
         return "CLEAR"
+
+    def draw_trajectory_envelope(self, image: np.ndarray, trajectory: list, risk_score: float = 0.0) -> np.ndarray:
+        """
+        Draw trajectory envelope (prediction envelope) on the image.
+        :param image: Input image
+        :param trajectory: List of predicted positions [(x1, y1), (x2, y2), ...]
+        :param risk_score: Risk score (0-1) for coloring the envelope
+        :return: Image with trajectory envelope drawn
+        """
+        if not trajectory or len(trajectory) < 2:
+            return image
+        
+        annotated = image.copy()
+        
+        # Calculate envelope width based on distance
+        envelope_points = []
+        for i, (x, y) in enumerate(trajectory):
+            # Base width on distance (farther points have wider envelope)
+            width = 5 + i * 0.5
+            # Add left and right points for envelope
+            if i > 0:
+                # Calculate direction vector
+                dx = x - trajectory[i-1][0]
+                dy = y - trajectory[i-1][1]
+                # Normalize direction vector
+                length = np.sqrt(dx**2 + dy**2)
+                if length > 0:
+                    dx /= length
+                    dy /= length
+                    # Perpendicular vector for envelope width
+                    perp_x = -dy
+                    perp_y = dx
+                    # Add left and right points
+                    envelope_points.append((int(x - perp_x * width), int(y - perp_y * width)))
+                    envelope_points.append((int(x + perp_x * width), int(y + perp_y * width)))
+        
+        # Close the envelope
+        if len(envelope_points) >= 4:
+            # Create polygon points
+            polygon = np.array(envelope_points, dtype=np.int32)
+            
+            # Determine color based on risk score
+            if risk_score > 0.7:
+                color = (0, 0, 255)  # Red for high risk
+            elif risk_score > 0.3:
+                color = (0, 165, 255)  # Orange for medium risk
+            else:
+                color = (0, 255, 0)  # Green for low risk
+            
+            # Draw filled polygon with transparency
+            overlay = annotated.copy()
+            cv2.fillPoly(overlay, [polygon], color)
+            annotated = cv2.addWeighted(overlay, 0.3, annotated, 0.7, 0)
+            
+            # Draw trajectory line
+            trajectory_points = np.array(trajectory, dtype=np.int32)
+            cv2.polylines(annotated, [trajectory_points], False, (255, 255, 255), 2, cv2.LINE_AA)
+            
+            # Draw trajectory points
+            for i, (x, y) in enumerate(trajectory):
+                # Point size decreases with distance
+                radius = max(2, 4 - i // 2)
+                cv2.circle(annotated, (int(x), int(y)), radius, (255, 255, 255), -1)
+        
+        return annotated
+
+    def draw_trajectories(self, image: np.ndarray, trajectories: dict, risk_scores: dict = None) -> np.ndarray:
+        """
+        Draw trajectories for multiple targets.
+        :param image: Input image
+        :param trajectories: Dict of trajectories {track_id: [(x1, y1), ...]}
+        :param risk_scores: Dict of risk scores {track_id: score}
+        :return: Image with trajectories drawn
+        """
+        annotated = image.copy()
+        
+        for track_id, trajectory in trajectories.items():
+            risk_score = risk_scores.get(track_id, 0.0) if risk_scores else 0.0
+            annotated = self.draw_trajectory_envelope(annotated, trajectory, risk_score)
+        
+        return annotated

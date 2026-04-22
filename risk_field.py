@@ -131,3 +131,88 @@ class RiskFieldEngine:
             v_stretch_factor=0.3, # More stretch for visual effect
             weather_factor=weather_factor
         )
+
+    def get_trajectory_risk_field(self, trajectory, velocities, time_decay=None, weather_factor=1.0):
+        """
+        Generate a risk field based on predicted trajectory.
+        :param trajectory: List of predicted positions [(x1, z1), (x2, z2), ...]
+        :param velocities: List of corresponding velocities [(vx1, vz1), (vx2, vz2), ...]
+        :param time_decay: List of time decay factors for each predicted point
+        :param weather_factor: Environmental risk multiplier
+        :return: Combined risk field
+        """
+        if not trajectory:
+            return np.zeros((self.grid_h, self.grid_w))
+        
+        # If time decay not provided, generate default
+        if time_decay is None:
+            steps = len(trajectory)
+            time_decay = []
+            for i in range(steps):
+                weight = np.exp(-i * 0.5)  # 0.5 is decay coefficient
+                time_decay.append(weight)
+            # Normalize
+            total = sum(time_decay)
+            time_decay = [w / total for w in time_decay]
+        
+        # Initialize combined field
+        combined_field = np.zeros((self.grid_h, self.grid_w))
+        
+        # Add risk for each predicted point
+        for i, ((x, z), (vx, vz), weight) in enumerate(zip(trajectory, velocities, time_decay)):
+            # Generate risk field for this point
+            field = self.get_gaussian_field(
+                x, z, vx, vz, 
+                weather_factor=weather_factor
+            )
+            # Add to combined field with time decay weight
+            combined_field += field * weight
+        
+        # Normalize to [0, 1]
+        max_val = np.max(combined_field)
+        if max_val > 0:
+            combined_field /= max_val
+        
+        return combined_field
+
+    def calculate_trajectory_risk(self, ego_pos, ego_vel, trajectories, velocities_list, time_decay=None, weather_factor=1.0):
+        """
+        Calculate risk based on predicted trajectories.
+        :param ego_pos: Ego vehicle position (x, z)
+        :param ego_vel: Ego vehicle velocity (vx, vz)
+        :param trajectories: List of trajectories for multiple targets
+        :param velocities_list: List of velocity lists for multiple targets
+        :param time_decay: Time decay factors
+        :param weather_factor: Environmental risk multiplier
+        :return: Total risk score and risk field
+        """
+        total_risk = 0
+        combined_field = np.zeros((self.grid_h, self.grid_w))
+        
+        for trajectory, velocities in zip(trajectories, velocities_list):
+            if not trajectory:
+                continue
+            
+            # Get trajectory risk field
+            traj_field = self.get_trajectory_risk_field(trajectory, velocities, time_decay, weather_factor)
+            
+            # Get ego field
+            ego_field = self.get_gaussian_field(
+                ego_pos[0], ego_pos[1], 
+                ego_vel[0], ego_vel[1], 
+                sigma_x=1.0, sigma_z=3.0, 
+                weather_factor=weather_factor
+            )
+            
+            # Calculate overlap
+            overlap = ego_field * traj_field
+            risk = np.sum(overlap)
+            total_risk += risk
+            combined_field += traj_field
+        
+        # Normalize combined field
+        max_val = np.max(combined_field)
+        if max_val > 0:
+            combined_field /= max_val
+        
+        return total_risk, combined_field
