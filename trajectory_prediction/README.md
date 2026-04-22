@@ -112,7 +112,7 @@ risk_engine = RiskFieldEngine()
 risk_field = calculate_risk_field(detections, tracks)
 
 # 预测轨迹
- trajectories = motion_engine.predict_trajectories(tracks, steps=5)
+trajectories = motion_engine.predict_trajectories(tracks, steps=5)
 
 # 计算速度列表
 velocities_list = []
@@ -178,3 +178,17 @@ python trajectory_prediction/example_usage.py
 2. 结合场景信息（如道路结构、交通规则）优化预测结果。
 3. 添加目标行为预测，识别潜在的危险行为（如突然变道、急刹车等）。
 4. 实现针对特定场景的意图修正逻辑，如变道预测修正。
+
+## 与项目集成
+
+本模块是驭安DriveSafe系统的重要组成部分，与其他模块的集成关系如下：
+
+1. **与目标跟踪模块**：使用DeepSort的Track对象作为输入，利用其内部的卡尔曼滤波器状态进行预测。
+
+2. **与风险场模块**：将预测轨迹的风险集成到风险场计算中，实现提前预警。
+
+3. **与可视化模块**：在road_surface_fusion/visualization.py中添加了轨迹包络带的绘制功能，直观展示预测结果。
+
+4. **与主程序**：可以在detect_3d.py或detect_3d_with_surface.py中集成轨迹预测功能，为系统添加轨迹预测能力。
+
+如需更详细的项目信息，请参考项目根目录下的 [README_DETAILED.md](../README_DETAILED.md) 文件。
