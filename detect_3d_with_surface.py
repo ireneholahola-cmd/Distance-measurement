@@ -1,26 +1,36 @@
-from __future__ import annotations
-
-import argparse
 import time
-from collections import defaultdict
-from pathlib import Path
-from typing import Optional
-
-import cv2
+import math
 import numpy as np
+from numpy import random
+from models.experimental import attempt_load
+from utils.datasets import LoadStreams, LoadImages
+from utils.general import check_img_size, check_requirements, check_imshow, non_max_suppression, apply_classifier, \
+    scale_coords, xyxy2xywh, strip_optimizer, set_logging, increment_path
+from utils.plots import plot_one_box
+from utils.torch_utils import select_device, load_classifier, time_synchronized
+from yolov10.utils.general import (
+    check_img_size, non_max_suppression, apply_classifier, scale_coords, xyxy2xywh, strip_optimizer)
+from yolov10.utils.torch_utils import select_device, load_classifier, time_synchronized
+from deep_sort.utils.parser import get_config
+from deep_sort.deep_sort import DeepSort
+from counter.draw_counter import draw_up_down_counter
+import argparse
+import platform
+import shutil
+from pathlib import Path
 import torch
 import torch.backends.cudnn as cudnn
-import yaml
-from deep_sort.deep_sort import DeepSort
-from deep_sort.utils.parser import get_config
-from models.experimental import attempt_load
-from utils.datasets import LoadImages, LoadStreams
-from utils.general import check_imshow, check_requirements, increment_path, non_max_suppression, scale_coords, set_logging, strip_optimizer
-from utils.plots import plot_one_box
-from utils.torch_utils import time_synchronized
-from yolov10.utils.general import apply_classifier, check_img_size, non_max_suppression, scale_coords, strip_optimizer, xyxy2xywh
-from yolov10.utils.torch_utils import load_classifier, select_device, time_synchronized
+import cv2
+import os
+from PIL import Image
+from pylab import *
+from matplotlib.pyplot import ginput, ion, ioff
+import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
+from collections import defaultdict
 
+# 新增引用：YOLO-3D 核心模块
+from depth_model import DepthEstimator
 from bbox3d_utils import BBox3DEstimator, BirdEyeView
 from risk_field import RiskFieldEngine
 from road_surface_fusion import (
@@ -28,263 +38,379 @@ from road_surface_fusion import (
     RoadSurfaceDetector,
     RoadSurfaceRiskFuser,
     RoadSurfaceVisualizer,
-    RobustDepthEstimator,
     StructuredOutputWriter,
     build_frame_record,
 )
 
 import sys
+sys.path.insert(0, './yolov10')
 
-sys.path.insert(0, "./yolov10")
-
-
-DRAW_WITH_DISTANCE = {"bicycle", "car", "motorcycle", "bus", "truck"}
-TRACKED_CLASSES = {0, 1, 2, 3, 5, 7}
+palette = (2 ** 11 - 1, 2 ** 15 - 1, 2 ** 20 - 1)
 
 
-def get_combined_status(combined_risk: float) -> str:
-    if combined_risk >= 0.8:
-        return "HIGH"
-    if combined_risk >= 0.55:
-        return "MEDIUM"
-    if combined_risk >= 0.25:
-        return "LOW"
-    return "CLEAR"
+# --------------------------
+# 风险场计算辅助函数（论文附录A公式依赖）
+# --------------------------
+def calc_g_v(v):
+    """论文2.1节：车速对虚拟质量的影响函数g(v)（v单位：km/h）"""
+    return 0.002368 * (v ** 4) - 0.3224 * (v ** 3) + 12.57 * (v ** 2) - 1492
 
 
-def build_warning_text(
-    dynamic_risk: float,
-    surface_risk: float,
-    combined_risk: float,
-    surface_analysis,
-) -> str:
-    decision_status = get_combined_status(combined_risk)
-    if decision_status == "CLEAR":
-        return "Path is clear"
-
-    if surface_risk >= dynamic_risk and surface_analysis.hazards:
-        return f"{decision_status} road surface risk: {surface_analysis.warning_text}"
-
-    if decision_status == "HIGH":
-        return "HIGH dynamic object risk ahead"
-    if decision_status == "MEDIUM":
-        return "MEDIUM dynamic object risk ahead"
-    return "LOW dynamic object risk ahead"
+def calc_phi_mu(mu):
+    """论文2.2节：路面附着系数影响函数φ(μ)"""
+    return -87290 * (mu ** 3) + 151900 * (mu ** 2) - 84630 * mu + 21780
 
 
+def calc_M_b(vehicle_type, m, v):
+    """论文公式(13)：计算风险源（车辆）的虚拟质量M_b"""
+    psi_T = 1.000 if vehicle_type == 'car' else 1.443  # 论文表5：汽车=1.000，载货车=1.443
+    g_v = calc_g_v(v)
+    return psi_T * m * g_v
+
+
+def calc_R_b(psi_delta, psi_rho_tau, mu):
+    """论文公式(14)：计算道路条件影响因子R_b"""
+    phi_mu = calc_phi_mu(mu)
+    return psi_delta * psi_rho_tau * phi_mu
+
+
+def SPE_v_bi(x_phi, y_phi, x_obs, y_obs, v_b, phi_v, K, k1, k3, R_b, M_b, R_i, M_i, DR_i):
+    """论文附录A公式A10：运动物体安全势能（风险值）计算"""
+    r_bi = np.sqrt((x_phi - x_obs) ** 2 + (y_phi - y_obs) ** 2)
+    r_bi = np.maximum(r_bi, 1e-6)
+
+    vec_r = np.stack([x_phi - x_obs, y_phi - y_obs], axis=-1)
+    vec_v = np.array([np.cos(phi_v), np.sin(phi_v)])
+    cos_theta_b = np.dot(vec_r, vec_v) / r_bi
+    cos_theta_b = np.clip(cos_theta_b, -1.0, 1.0)
+
+    numerator = K * R_b * M_b * R_i * M_i * (1 + DR_i) * k3
+    denominator = (k1 - 1) * (r_bi ** (k1 - 1))
+    term1 = np.maximum(k3 - np.abs(v_b) * cos_theta_b, 1e-6)
+    term2 = np.maximum(k3 - np.abs(v_b), 1e-6)
+    power_term = (term1 ** (1 - k1) / term2) ** (1 / k1)
+
+    return (numerator / denominator) * power_term
+
+
+def SPE_r_ai(x_phi, y_phi, x_obs, y_obs, K, k1, R_b, M_b, R_i, M_i, DR_i):
+    """论文附录A公式A8：静止物体安全势能（风险值）计算"""
+    r_bi = np.sqrt((x_phi - x_obs) ** 2 + (y_phi - y_obs) ** 2)
+    r_bi = np.maximum(r_bi, 1e-6)
+    return (K * R_b * M_b * R_i * M_i * (1 + DR_i)) / ((k1 - 1) * (r_bi ** (k1 - 1)))
+
+
+# --------------------------
+# 风险场热力图生成函数（优化版）
+# --------------------------
+def generate_bev_map(risk_sources, width_meter=20, depth_meter=100, map_w=400, map_h=800, tracks=None):
+    """
+    生成物理坐标系的 BEV 风险场热力图
+    :param tracks: 车辆轨迹字典 {id: [(x, z), ...]}
+    """
+    # 1. 论文标定参数初始化
+    m = 1500; mu = 0.9; psi_delta = 1.457; psi_rho_tau = 1.000; DR_i = 0.5
+    R_common = calc_R_b(psi_delta, psi_rho_tau, mu)
+    M_i = calc_M_b('car', m, v=0)
+    K_risk = 0.1; k1 = 1.5; k3 = 160
+
+    # 2. 生成物理网格 (X: -10m~10m, Z: 0m~100m)
+    # 显著增加横向分辨率，确保左右车道区分清晰
+    grid_res_w = 400 
+    grid_res_h = 400 
+    x_phi = np.linspace(-width_meter/2, width_meter/2, grid_res_w)
+    y_phi = np.linspace(0, depth_meter, grid_res_h)
+    x_phi, y_phi = np.meshgrid(x_phi, y_phi)
+
+    # 3. 计算总风险场
+    U_total = np.zeros_like(x_phi)
+    for src in risk_sources:
+        x_obs, z_obs = src['x'], src['z']
+        v_b = src['speed']
+        car_type = src['type']
+        
+        M_b = calc_M_b(car_type, m, v_b)
+        
+        # 运动物体 (使用 yaw 作为方向)
+        if v_b > 1e-3:
+            phi_v = src.get('yaw', 0.0) 
+            # 注意：调整角度方向以匹配网格坐标系
+            single_risk = SPE_v_bi(x_phi, y_phi, x_obs, z_obs, v_b, phi_v, K_risk, k1, k3, R_common, M_b, R_common, M_i, DR_i)
+        else:
+            single_risk = SPE_r_ai(x_phi, y_phi, x_obs, z_obs, K_risk, k1, R_common, M_b, R_common, M_i, DR_i)
+            
+        U_total += single_risk
+
+    # 4. 归一化
+    if U_total.max() > 0:
+        threshold = np.percentile(U_total, 98) if np.any(U_total) else 1.0
+        U_total_clipped = np.clip(U_total, 0, threshold)
+        p30 = np.percentile(U_total_clipped, 30) if np.any(U_total_clipped) else 0.1
+        if p30 == 0: p30 = 0.1
+        
+        U_norm = np.zeros_like(U_total_clipped)
+        mask_low = U_total_clipped <= p30
+        mask_high = ~mask_low
+        U_norm[mask_low] = (U_total_clipped[mask_low] / p30) * 0.3
+        denom = (threshold - p30)
+        if denom == 0: denom = 1
+        U_norm[mask_high] = ((U_total_clipped[mask_high] - p30) / denom) * 0.7 + 0.3
+    else:
+        U_norm = U_total
+
+    # 5. 绘制热力图
+    plt.switch_backend('Agg')
+    dpi = 100
+    fig = plt.figure(figsize=(map_w/dpi, map_h/dpi), dpi=dpi, frameon=False)
+    ax = plt.Axes(fig, [0., 0., 1., 1.])
+    ax.set_axis_off()
+    fig.add_axes(ax)
+    
+    ax.set_xlim(-width_meter/2, width_meter/2)
+    ax.set_ylim(0, depth_meter) # 0(近处)在下, 100(远处)在上
+
+    # 配色方案
+    levels = 100
+    colors = [(0.1, 0.1, 0.8), (0.2, 0.7, 0.2), (1.0, 0.5, 0), (1.0, 0, 0)]
+    cmap_custom = LinearSegmentedColormap.from_list('high_contrast', colors, N=levels)
+
+    ax.contourf(x_phi, y_phi, U_norm, levels=levels, cmap=cmap_custom, alpha=0.9, antialiased=True)
+    
+    # 绘制轨迹
+    if tracks:
+        for src in risk_sources:
+            tid = src['id']
+            if tid in tracks:
+                hist = tracks[tid]
+                if len(hist) > 1:
+                    # hist is list of (x, z)
+                    px = [p[0] for p in hist]
+                    py = [p[1] for p in hist]
+                    ax.plot(px, py, color='white', linewidth=1, alpha=0.4, linestyle='--')
+
+    # 标记风险源
+    for src in risk_sources:
+        # ax.scatter(src['x'], src['z'], c='red', s=150, edgecolors='white', linewidth=2, zorder=10)
+        
+        # 使用“水滴型”标记 (Marker) 代替丑陋的箭头
+        # 这种标记本身就带有方向性，看起来更像雷达界面
+        # 使用自定义 MarkerPath 或者简单的 matplotlib 预设
+        # '^' 是正三角形，我们可以旋转它来表示方向
+        
+        x, z = src['x'], src['z']
+        yaw = src.get('yaw', 0) 
+        
+        # 将 yaw 转换为度数 (matplotlib 旋转是逆时针为正，0度是向右)
+        # 我们的坐标系：0度是Z轴正向(向上)
+        # 所以转换公式：angle = -yaw_deg + 90
+        yaw_deg = np.degrees(yaw)
+        marker_angle = -yaw_deg + 90
+        
+        # 使用自定义的 Marker 绘制带方向的圆点
+        # 这里的 marker=(3, 0, angle) 表示 3边形(三角形)，0是风格，angle是旋转
+        # 但 scatter 的 marker 旋转比较麻烦，不如直接用 RegularPolygon
+        
+        # 方案B：绘制一个圆点 + 一个短线指示方向 (经典的雷达图画法)
+        # 圆点：缩小尺寸，避免视觉上“粘连”
+        # 原来 radius=0.4 -> 现在 0.3
+        circle = plt.Circle((x, z), radius=0.3, fc='red', ec='white', lw=1.5, zorder=10)
+        ax.add_patch(circle)
+        
+        # 方向线 (从圆心伸出)
+        line_len = 0.8
+        dx = line_len * np.sin(yaw)
+        dz = line_len * np.cos(yaw)
+        ax.plot([x, x+dx], [z, z+dz], color='white', lw=2, zorder=11)
+
+    fig.canvas.draw()
+    
+    # 兼容不同版本 Matplotlib 获取图像数据
+    try:
+        if hasattr(fig.canvas, 'buffer_rgba'):
+            # Matplotlib 3.8+
+            buf = fig.canvas.buffer_rgba()
+            risk_rgb = np.asarray(buf)
+            # RGBA 转 BGR
+            if risk_rgb.shape[2] == 4:
+                risk_bgr = cv2.cvtColor(risk_rgb, cv2.COLOR_RGBA2BGR)
+            else:
+                risk_bgr = cv2.cvtColor(risk_rgb, cv2.COLOR_RGB2BGR)
+        else:
+            # 旧版 Matplotlib
+            buf = fig.canvas.tostring_rgb()
+            risk_rgb = np.frombuffer(buf, dtype=np.uint8).reshape(map_h, map_w, 3)
+            risk_bgr = cv2.cvtColor(risk_rgb, cv2.COLOR_RGB2BGR)
+    except Exception as e:
+        print(f"Error generating BEV map: {e}")
+        risk_bgr = np.zeros((map_h, map_w, 3), dtype=np.uint8)
+        
+    plt.close(fig)
+    return risk_bgr
+
+# --------------------------
+# 辅助函数：边界框相对坐标计算
+# --------------------------
 def bbox_rel(image_width, image_height, *xyxy):
     bbox_left = min([xyxy[0].item(), xyxy[2].item()])
     bbox_top = min([xyxy[1].item(), xyxy[3].item()])
     bbox_w = abs(xyxy[0].item() - xyxy[2].item())
     bbox_h = abs(xyxy[1].item() - xyxy[3].item())
-    x_c = bbox_left + bbox_w / 2
-    y_c = bbox_top + bbox_h / 2
-    return x_c, y_c, bbox_w, bbox_h
+    x_c = (bbox_left + bbox_w / 2)
+    y_c = (bbox_top + bbox_h / 2)
+    w = bbox_w
+    h = bbox_h
+    return x_c, y_c, w, h
 
 
-def load_camera_matrix(camera_params_path: str, source: str, webcam: bool) -> np.ndarray:
-    cam_params = None
-    try:
-        with open(camera_params_path, "r", encoding="utf-8") as file_handle:
-            cam_params = yaml.safe_load(file_handle)
-    except Exception:
-        cam_params = None
-
-    if cam_params:
-        return np.array(
-            [
-                [cam_params["camera_matrix"]["fx"], 0, cam_params["camera_matrix"]["cx"]],
-                [0, cam_params["camera_matrix"]["fy"], cam_params["camera_matrix"]["cy"]],
-                [0, 0, 1],
-            ]
-        )
-
-    video_width, video_height = 1920, 1080
-    if not webcam and source.endswith((".mp4", ".avi", ".mov")):
-        capture = cv2.VideoCapture(source)
-        if capture.isOpened():
-            video_width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH)) or video_width
-            video_height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT)) or video_height
-        capture.release()
-
-    est_f = float(video_width)
-    est_cx = video_width / 2.0
-    est_cy = video_height / 2.0
-    return np.array([[est_f, 0, est_cx], [0, est_f, est_cy], [0, 0, 1]])
-
-
-def draw_actor_box(image: np.ndarray, xyxy, label: str, color) -> None:
-    x1, y1, x2, y2 = [int(value) for value in xyxy]
-    cv2.rectangle(image, (x1, y1), (x2, y2), color, 2, cv2.LINE_AA)
-    (text_w, text_h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-    label_top = max(y1 - text_h - 6, 0)
-    cv2.rectangle(image, (x1, label_top), (x1 + text_w + 6, label_top + text_h + 6), color, -1)
-    cv2.putText(
-        image,
-        label,
-        (x1 + 3, label_top + text_h + 1),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.5,
-        (255, 255, 255),
-        1,
-        cv2.LINE_AA,
-    )
+# --------------------------
+# 速度计算函数
+# --------------------------
+def Estimated_speed(locations, fps, width):
+    present_IDs = []
+    prev_IDs = []
+    work_IDs = []
+    work_IDs_index = []
+    work_IDs_prev_index = []
+    work_locations = []
+    work_prev_locations = []
+    speed = []
+    for i in range(len(locations[1])):
+        present_IDs.append(locations[1][i][2])
+    for i in range(len(locations[0])):
+        prev_IDs.append(locations[0][i][2])
+    for m, n in enumerate(present_IDs):
+        if n in prev_IDs:
+            work_IDs.append(n)
+            work_IDs_index.append(m)
+    for x in work_IDs_index:
+        work_locations.append(locations[1][x])
+    for y, z in enumerate(prev_IDs):
+        if z in work_IDs:
+            work_IDs_prev_index.append(y)
+    for x in work_IDs_prev_index:
+        work_prev_locations.append(locations[0][x])
+    for i in range(len(work_IDs)):
+        speed.append(
+            math.sqrt((work_locations[i][0] - work_prev_locations[i][0]) ** 2 +
+                      (work_locations[i][1] - work_prev_locations[i][1]) ** 2) *
+            width[work_locations[i][3]] / (work_locations[i][4]) * fps / 5 * 3.6 * 2)
+    for i in range(len(speed)):
+        speed[i] = [round(speed[i], 1), work_locations[i][2]]
+    return speed
 
 
-def draw_combined_status_panel(
-    image: np.ndarray,
-    dynamic_risk: float,
-    surface_risk: float,
-    combined_risk: float,
-    surface_analysis,
-) -> None:
-    status = get_combined_status(combined_risk)
-    if status == "HIGH":
-        color = (0, 0, 255)
-    elif status == "MEDIUM":
-        color = (0, 165, 255)
-    elif status == "LOW":
-        color = (0, 215, 255)
-    else:
-        color = (0, 180, 0)
-
-    panel_w = 360
-    panel_h = 88
-    panel_x = max(image.shape[1] - panel_w - 20, 10)
-    panel_y = 20
-
-    overlay = image.copy()
-    cv2.rectangle(overlay, (panel_x, panel_y), (panel_x + panel_w, panel_y + panel_h), (18, 18, 18), -1)
-    cv2.addWeighted(overlay, 0.45, image, 0.55, 0, image)
-
-    lines = [
-        f"Decision: {status}",
-        f"Dynamic: {dynamic_risk:.2f}  Surface: {surface_risk:.2f}",
-        f"P:{surface_analysis.pothole_count}  C:{surface_analysis.crack_count}  Combined:{combined_risk:.2f}",
-    ]
-
-    for index, line in enumerate(lines):
-        cv2.putText(
-            image,
-            line,
-            (panel_x + 10, panel_y + 24 + index * 24),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.55,
-            color if index == 0 else (255, 255, 255),
-            1,
-            cv2.LINE_AA,
-        )
-
-
-def cv_show(window_name: str, im0: np.ndarray, risk_img: Optional[np.ndarray] = None) -> None:
-    height, width = im0.shape[:2]
-    scale = 800 / width
-    size = (800, int(height * scale))
-    image_resized = cv2.resize(im0, size, interpolation=cv2.INTER_AREA)
-
-    if risk_img is not None:
-        target_h = image_resized.shape[0]
-        target_w = 600
-        risk_resized = cv2.resize(risk_img, (target_w, target_h), interpolation=cv2.INTER_AREA)
-        combined_img = np.hstack((image_resized, risk_resized))
-        cv2.imshow(window_name, combined_img)
-    else:
-        cv2.imshow(window_name, image_resized)
-    cv2.waitKey(1)
-
-
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--weights", nargs="+", type=str, default="yolov10s.pt", help="model.pt path(s)")
-    parser.add_argument("--source", type=str, default="lanechange.mp4", help="source")
-    parser.add_argument("--img-size", type=int, default=640, help="inference size (pixels)")
-    parser.add_argument("--conf-thres", type=float, default=0.01, help="object confidence threshold")
-    parser.add_argument("--iou-thres", type=float, default=0.01, help="IOU threshold for NMS")
-    parser.add_argument("--device", default="", help="cuda device, i.e. 0 or 0,1,2,3 or cpu")
-    parser.add_argument("--view-img", dest="view_img", action="store_true", help="display results")
-    parser.add_argument("--no-view-img", dest="view_img", action="store_false", help="disable display results")
-    parser.set_defaults(view_img=True, save_jsonl=True)
-    parser.add_argument("--save-txt", action="store_true", help="save results to *.txt")
-    parser.add_argument("--save-conf", action="store_true", help="save confidences in --save-txt labels")
-    parser.add_argument("--nosave", action="store_true", help="do not save images/videos")
-    parser.add_argument("--classes", nargs="+", type=int, help="filter by class: --class 0, or --class 0 2 3")
-    parser.add_argument("--agnostic-nms", action="store_true", help="class-agnostic NMS")
-    parser.add_argument("--augment", action="store_true", help="augmented inference")
-    parser.add_argument("--update", action="store_true", help="update all models")
-    parser.add_argument("--project", default="runs/detect_surface_fusion", help="save results to project/name")
-    parser.add_argument("--name", default="exp", help="save results to project/name")
-    parser.add_argument("--exist-ok", action="store_true", help="existing project/name ok, do not increment")
-    parser.add_argument("--config_deepsort", type=str, default="deep_sort/configs/deep_sort.yaml")
-    parser.add_argument("--camera-params", type=str, default="config/camera_params.yaml")
-    parser.add_argument("--road-model-dir", type=str, default=str(Path(__file__).resolve().parent / "code" / "models"))
-    parser.add_argument("--road-conf-thres", type=float, default=0.25)
-    parser.add_argument("--depth-backend", choices=["depth-anything"], default="depth-anything", help="depth backend")
-    parser.add_argument("--save-jsonl", dest="save_jsonl", action="store_true", help="enable per-frame structured jsonl export")
-    parser.add_argument("--no-save-jsonl", dest="save_jsonl", action="store_false", help="disable per-frame structured jsonl export")
-    parser.add_argument("--structured-dir", type=str, default="structured", help="structured output subdirectory name")
-    return parser
-
-
+# --------------------------
+# 主检测函数
+# --------------------------
 def detect(save_img=False):
     source, weights, view_img, save_txt, imgsz = opt.source, opt.weights, opt.view_img, opt.save_txt, opt.img_size
-    save_img = not opt.nosave and not source.endswith(".txt")
-    webcam = source.isnumeric() or source.endswith(".txt") or source.lower().startswith(
-        ("rtsp://", "rtmp://", "http://", "https://")
-    )
+    save_img = not opt.nosave and not source.endswith('.txt')
 
+    # === 修复：初始化 cam_params ===
+    try:
+        with open('config/camera_params.yaml', 'r') as f:
+            cam_params = yaml.safe_load(f)
+    except:
+        print("Warning: config/camera_params.yaml not found or invalid. Will use auto-estimated intrinsics.")
+        cam_params = None
+    # ============================
+
+    webcam = source.isnumeric() or source.endswith('.txt') or source.lower().startswith(
+        ('rtsp://', 'rtmp://', 'http://', 'https://'))
+
+    # 结果保存目录
     save_dir = Path(increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok))
-    (save_dir / "labels" if save_txt else save_dir).mkdir(parents=True, exist_ok=True)
+    (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)
     structured_writer = None
     if opt.save_jsonl:
         structured_writer = StructuredOutputWriter(save_dir / opt.structured_dir)
         print(f"Structured output will be saved to {structured_writer.output_path}")
 
+    # 获取视频帧率
+    fps = 30
+    if not webcam and source.endswith(('.mp4', '.avi', '.mov')):
+        capture = cv2.VideoCapture(source)
+        fps = capture.get(cv2.CAP_PROP_FPS)
+        capture.release()
+
+    # DeepSort初始化
+    cfg = get_config()
+    cfg.merge_from_file(opt.config_deepsort)
+    deepsort = DeepSort(cfg.DEEPSORT.REID_CKPT,
+                        max_dist=cfg.DEEPSORT.MAX_DIST, min_confidence=cfg.DEEPSORT.MIN_CONFIDENCE,
+                        nms_max_overlap=cfg.DEEPSORT.NMS_MAX_OVERLAP, max_iou_distance=cfg.DEEPSORT.MAX_IOU_DISTANCE,
+                        max_age=cfg.DEEPSORT.MAX_AGE, n_init=cfg.DEEPSORT.N_INIT, nn_budget=cfg.DEEPSORT.NN_BUDGET,
+                        use_cuda=True)
+
+    # 车型参数
+    width = [0, 0.2, 1.85, 0.5, 0, 2.3, 0, 2.5]  # 各类别真实宽度
+    time_person = 3  # 刹车反应时间
+    locations = []
+    speed = []
+    current_frame_speeds = {}  # 当前帧车辆速度（ID→speed）
+    prev_centers = {}  # 【关键】存储上一帧车辆位置：{ID: (x, y)}
+    
+    # === 新增：轨迹历史 ===
+    track_history = defaultdict(list) # ID -> list of (x, z)
+    # ====================
+
+    # Initialize
     set_logging()
     device = select_device(opt.device)
-    use_half = device.type != "cpu"
 
-    camera_matrix = load_camera_matrix(opt.camera_params, source, webcam)
-    print(f"Using camera matrix:\n{camera_matrix}")
-
-    print("Initializing depth estimator...")
-    depth_estimator = RobustDepthEstimator(
-        model_size="small",
-        device=device.type if device.type != "cpu" else "cpu",
-        backend=opt.depth_backend,
-    )
-    print(f"Depth backend: {depth_estimator.backend_name}")
-    bbox3d_estimator = BBox3DEstimator(camera_matrix=camera_matrix)
-
+    # YOLO-3D 初始化：Depth Anything v2 和 3D BBox Estimator
+    print("Initializing Depth Anything v2...")
+    # 使用与 YOLO 相同的 device，但如果显存不足，DepthEstimator 会自动 fallback 到 CPU
+    depth_estimator = DepthEstimator(model_size='small', device=device.type if device.type != 'cpu' else 'cpu')
+    
+    # 3D BBox Estimator (使用已加载的相机参数)
+    if cam_params:
+        K = np.array([
+            [cam_params['camera_matrix']['fx'], 0, cam_params['camera_matrix']['cx']],
+            [0, cam_params['camera_matrix']['fy'], cam_params['camera_matrix']['cy']],
+            [0, 0, 1]
+        ])
+    else:
+        # Fallback: 自动估算内参
+        vid_w, vid_h = 1920, 1080 # Default
+        if not webcam and source.endswith(('.mp4', '.avi', '.mov')):
+             try:
+                 cap_tmp = cv2.VideoCapture(source)
+                 if cap_tmp.isOpened():
+                     vid_w = int(cap_tmp.get(cv2.CAP_PROP_FRAME_WIDTH))
+                     vid_h = int(cap_tmp.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                     cap_tmp.release()
+             except:
+                 pass
+        
+        # 估算焦距 (假设标准镜头)
+        est_f = vid_w * 1.0 
+        est_cx = vid_w / 2
+        est_cy = vid_h / 2
+        
+        K = np.array([[est_f, 0, est_cx], [0, est_f, est_cy], [0, 0, 1]])
+        print(f"Warning: No camera params found. Using estimated intrinsics for {vid_w}x{vid_h}")
+        
+    bbox3d_estimator = BBox3DEstimator(camera_matrix=K)
     road_detector = RoadSurfaceDetector(model_dir=opt.road_model_dir, preferred_device=device.type)
     road_analyzer = RoadSurfaceAnalyzer()
     road_visualizer = RoadSurfaceVisualizer()
     road_fuser = RoadSurfaceRiskFuser()
 
-    cfg = get_config()
-    cfg.merge_from_file(opt.config_deepsort)
-    deepsort = DeepSort(
-        cfg.DEEPSORT.REID_CKPT,
-        max_dist=cfg.DEEPSORT.MAX_DIST,
-        min_confidence=cfg.DEEPSORT.MIN_CONFIDENCE,
-        nms_max_overlap=cfg.DEEPSORT.NMS_MAX_OVERLAP,
-        max_iou_distance=cfg.DEEPSORT.MAX_IOU_DISTANCE,
-        max_age=cfg.DEEPSORT.MAX_AGE,
-        n_init=cfg.DEEPSORT.N_INIT,
-        nn_budget=cfg.DEEPSORT.NN_BUDGET,
-        use_cuda=device.type != "cpu",
-    )
-
+    half = device.type != 'cpu'
     model = attempt_load(weights, map_location=device)
     stride = int(model.stride.max())
     imgsz = check_img_size(imgsz, s=stride)
-    if use_half:
+    if half:
         model.half()
 
+        # 二级分类器（默认关闭）
     classify = False
     if classify:
-        modelc = load_classifier(name="resnet101", n=2)
-        modelc.load_state_dict(torch.load("weights/resnet101.pt", map_location=device)["model"]).to(device).eval()
+        modelc = load_classifier(name='resnet101', n=2)
+        modelc.load_state_dict(torch.load('weights/resnet101.pt', map_location=device, weights_only=False)['model']).to(device).eval()
 
+    # 数据加载器
     vid_path, vid_writer = None, None
     if webcam:
         if view_img:
@@ -294,274 +420,441 @@ def detect(save_img=False):
     else:
         dataset = LoadImages(source, img_size=imgsz, stride=stride)
 
-    names = model.module.names if hasattr(model, "module") else model.names
-    if device.type != "cpu":
+    # 类别名称
+    names = model.module.names if hasattr(model, 'module') else model.names
+
+    # 图像显示函数（拼接原画面与风险场）
+    def cv_show(p, im0, risk_img=None):
+        height, width = im0.shape[:2]
+        a = 800 / width  # 缩放比例
+        size = (800, int(height * a))
+        img_resize = cv2.resize(im0, size, interpolation=cv2.INTER_AREA)
+
+        if risk_img is not None:
+            # 增加 risk_img 的显示比例
+            # 原始逻辑：保持 risk_img 纵横比，缩放高度匹配 img_resize
+            # 新逻辑：强制设置 risk_img 宽度为 img_resize 宽度的 1/2 (或者自定义像素值，比如 500)
+            
+            target_h = img_resize.shape[0]
+            target_w = 600 # 增加宽度，使风险图更大更清晰
+            
+            risk_resize = cv2.resize(risk_img, (target_w, target_h), interpolation=cv2.INTER_AREA)
+            
+            combined_img = np.hstack((img_resize, risk_resize))  # 横向拼接
+            cv2.imshow(p, combined_img)
+        else:
+            cv2.imshow(p, img_resize)
+        cv2.waitKey(1)
+
+    # 模型预热
+    if device.type != 'cpu':
         model(torch.zeros(1, 3, imgsz, imgsz).to(device).type_as(next(model.parameters())))
-
+        
+    # Initialize Risk Field Engine & BEV Visualizer
+    # 物理范围：宽16m，深25m，分辨率10cm (0.1m)
     risk_engine = RiskFieldEngine(width_meter=16, depth_meter=25, grid_res=0.1)
+    
+    # BEV 视图：宽400px，高600px (对应16m x 24m => 25 px/m)
+    # 稍微调整高度以匹配比例
     bev_visualizer = BirdEyeView(size=(400, 625), scale=25, camera_height=1.5)
-    track_history = defaultdict(list)
-
+    
     t0 = time.time()
+
+    # 遍历视频帧
     for frame_idx, (path, img, im0s, vid_cap) in enumerate(dataset):
+        if opt.max_frames is not None and frame_idx >= opt.max_frames:
+            break
+
+        # 图像预处理
         img = torch.from_numpy(img).to(device)
-        img = img.half() if use_half else img.float()
+        img = img.half() if half else img.float()
         img /= 255.0
         if img.ndimension() == 3:
             img = img.unsqueeze(0)
 
+            # 模型推理
         t1 = time_synchronized()
         pred = model(img, augment=opt.augment)[0]
-        pred = non_max_suppression(
-            pred,
-            opt.conf_thres,
-            opt.iou_thres,
-            classes=opt.classes,
-            agnostic=opt.agnostic_nms,
-        )
+
+        # 非极大值抑制
+        pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
         t2 = time_synchronized()
 
+        # 二级分类（可选）
         if classify:
             pred = apply_classifier(pred, modelc, img, im0s)
 
+        # === 深度估计 (每一帧做一次) ===
+        # 注意：im0s 可能是列表（多摄像头）或单张图
+        # 这里假设是单张图处理，如果是多路视频可能需要遍历
+        curr_im0_depth = im0s.copy() if not webcam else im0s[0].copy()
+        
+        # 性能优化：如果显存紧张，可以隔帧运行深度估计
+        # 目前每帧都跑
+        depth_map = depth_estimator.estimate_depth(curr_im0_depth)
+        road_main_results, road_aux_results, road_model_label = road_detector.detect(
+            curr_im0_depth,
+            conf_thres=opt.road_conf_thres,
+        )
+        surface_analysis = road_analyzer.analyze(
+            curr_im0_depth,
+            depth_map,
+            K,
+            road_main_results,
+            road_aux_results,
+            road_model_label,
+        )
+        # ============================
+
+        # 处理检测结果
         for i, det in enumerate(pred):
             if webcam:
-                p, s, im0, frame = path[i], f"{i}: ", im0s[i].copy(), dataset.count
+                p, s, im0, frame = path[i], '%g: ' % i, im0s[i].copy(), dataset.count
             else:
-                p, s, im0, frame = path, "", im0s.copy(), getattr(dataset, "frame", 0)
+                p, s, im0, frame = path, '', im0s, getattr(dataset, 'frame', 0)
 
             p = Path(p)
             save_path = str(save_dir / p.name)
-            s += "%gx%g " % img.shape[2:]
+            txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')
+            s += '%gx%g ' % img.shape[2:]
 
-            depth_map = depth_estimator.estimate_depth(im0)
-            road_main_results, road_aux_results, road_model_label = road_detector.detect(
-                im0,
-                conf_thres=opt.road_conf_thres,
-            )
-            surface_analysis = road_analyzer.analyze(
-                im0,
-                depth_map,
-                camera_matrix,
-                road_main_results,
-                road_aux_results,
-                road_model_label,
-            )
-            im0 = road_visualizer.draw_on_frame(im0, surface_analysis)
-
-            outputs = np.empty((0, 6), dtype=np.int64)
-            risk_sources = []
-            speed = []
-            time_person = 3
+            current_frame_distances = {}
+            risk_img = None
+            dynamic_risk = 0.0
+            surface_risk = 0.0
+            combined_risk = 0.0
+            decision_status = 'CLEAR'
+            warning_text = surface_analysis.warning_text
+            max_risk_id = None
+            risk_sources = []  # 存储当前帧风险源（含ID）
 
             if det is not None and len(det):
+                # 调整检测框到原图尺寸
                 det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
+
+                # DeepSort输入准备
                 bbox_xywh = []
                 confs = []
                 classes_list = []
-                bbox_3d_list = []
-
+                bbox_3d_list = [] # 存放新的 3D pose
+                
                 img_h, img_w, _ = im0.shape
                 for *xyxy, conf, cls in det:
                     x_c, y_c, bbox_w, bbox_h = bbox_rel(img_w, img_h, *xyxy)
                     bbox_xywh.append([x_c, y_c, bbox_w, bbox_h])
                     confs.append([conf.item()])
                     classes_list.append([cls.item()])
-
-                    xyxy_cpu = [value.item() for value in xyxy]
-                    depth_val = depth_estimator.get_depth_in_region(depth_map, xyxy_cpu, method="median")
-                    class_name = names[int(cls)]
-                    box_3d = bbox3d_estimator.estimate_3d_box(xyxy_cpu, depth_val, class_name)
-                    bbox_3d_list.append(
-                        (
-                            box_3d["location"][0],
-                            box_3d["location"][2],
-                            box_3d["dimensions"][2],
-                            box_3d["dimensions"][1],
-                            box_3d["dimensions"][0],
-                            box_3d["orientation"],
-                        )
+                    
+                    # === 新增：基于 Depth Anything 的 3D 估算 ===
+                    # 获取深度值
+                    # xyxy 是 tensor，转 numpy
+                    xyxy_cpu = [x.item() for x in xyxy]
+                    depth_val = depth_estimator.get_depth_in_region(depth_map, xyxy_cpu, method='median')
+                    
+                    # 估算 3D 框 (此时没有 ID)
+                    cls_name = names[int(cls)]
+                    box_3d = bbox3d_estimator.estimate_3d_box(xyxy_cpu, depth_val, cls_name)
+                    
+                    # 构造 DeepSort 需要的 pose (X, Z, L, W, H, Yaw)
+                    pose = (
+                        box_3d['location'][0], # X
+                        box_3d['location'][2], # Z (深度)
+                        box_3d['dimensions'][2], # L
+                        box_3d['dimensions'][1], # W
+                        box_3d['dimensions'][0], # H
+                        box_3d['orientation']  # Yaw
                     )
+                    bbox_3d_list.append(pose)
+                    # ==========================================
 
                 xywhs = torch.Tensor(bbox_xywh)
                 confss = torch.Tensor(confs)
                 classes = torch.Tensor(classes_list)
-                outputs = deepsort.update(xywhs, confss, im0, classes, bbox_3d=bbox_3d_list)
-                valid_outputs = [item for item in outputs if int(item[5]) in TRACKED_CLASSES]
 
+                # DeepSort跟踪 (传入 3D 数据以启用 3D 欧氏距离匹配)
+                outputs = deepsort.update(xywhs, confss, im0, classes, bbox_3d=bbox_3d_list)
+
+                # 过滤有效车辆类型（bicycle, car, motorcycle, bus, truck）
+                valid_classes = {0, 1, 2, 3, 5, 7}
+                valid_outputs = [out for out in outputs if int(out[5]) in valid_classes]
+
+                # 收集风险源信息（含ID）
+                # ---------------------------------------------------------
+                # NEW LOGIC: Multi-stage Processing for Demo Visualization
+                # ---------------------------------------------------------
+                
+                # Stage 1: Data Collection & 3D Refinement
+                risk_sources = []
+                
                 for out in valid_outputs:
                     x1, y1, x2, y2, current_id, cls_id = out
-                    if cls_id < 0 or cls_id >= len(names):
-                        continue
-
+                    
+                    # Validation
+                    if cls_id < 0 or cls_id >= len(names): continue
                     current_class = names[int(cls_id)]
+                    car_type = 'truck' if current_class in ['bus', 'truck'] else 'car'
+                    
+                    # Confidence
                     match_idx = np.where(classes.numpy().flatten() == cls_id)[0]
                     conf = confss[match_idx[0]].item() if len(match_idx) > 0 else 0.0
-                    label = f"{current_class} {conf:.2f}"
+                    conf2 = round(conf, 2)
 
-                    if current_class in DRAW_WITH_DISTANCE:
-                        plot_one_box(
-                            [x1, y1, x2, y2],
-                            im0,
-                            speed,
-                            outputs,
-                            time_person,
-                            label=label,
-                            color=[0, 0, 255],
-                            line_thickness=3,
-                            name=current_class,
-                        )
-                    else:
-                        draw_actor_box(im0, [x1, y1, x2, y2], label, (0, 255, 0))
-
-                    track = next((track_item for track_item in deepsort.tracker.tracks if track_item.track_id == current_id), None)
-                    if track is None or track.pose_3d is None:
-                        continue
-
-                    x_raw, z_raw, length, width, height, yaw_raw = track.pose_3d
-                    box_3d_raw = {
-                        "location": np.array([x_raw, 0, z_raw]),
-                        "dimensions": np.array([height, width, length]),
-                        "orientation": yaw_raw,
-                        "class_name": current_class,
-                    }
-
-                    if hasattr(bbox3d_estimator, "refine_box_3d"):
-                        box_3d_refined = bbox3d_estimator.refine_box_3d(box_3d_raw, current_id)
-                        x_pos, _, z_pos = box_3d_refined["location"]
-                        yaw = box_3d_refined["orientation"]
-                    else:
-                        x_pos, z_pos, yaw = x_raw, z_raw, yaw_raw
-
-                    object_dims = np.array([height, width, length])
-                    box_3d_draw = {
-                        "bbox_2d": [x1, y1, x2, y2],
-                        "location": np.array([x_pos, 0, z_pos]),
-                        "dimensions": object_dims,
-                        "orientation": yaw,
-                        "class_name": current_class,
-                        "object_id": current_id,
-                        "depth_value": np.clip((z_pos - 1.0) / 9.0, 0.0, 1.0),
-                    }
-
-                    object_type = "truck" if current_class in {"bus", "truck"} else ("person" if current_class == "person" else "car")
-                    risk_sources.append(
-                        {
-                            "id": current_id,
-                            "x": x_pos,
-                            "z": z_pos,
-                            "speed": 0.0,
-                            "yaw": yaw,
-                            "type": object_type,
-                            "dims": object_dims,
-                            "confidence": conf,
-                            "bbox_2d": [int(x1), int(y1), int(x2), int(y2)],
-                            "box_3d_draw": box_3d_draw,
-                            "class_name": current_class,
-                        }
+                    # 2D Box Drawing (Base Layer)
+                    xyxy = [x1, y1, x2, y2]
+                    label = f'{current_class} {conf2:.2f}'
+                    plot_one_box(
+                        xyxy, im0, speed, outputs, time_person,
+                        label=label, color=[0, 0, 255], line_thickness=3,
+                        name=current_class
                     )
+                    
+                    # 3D Tracking & Refinement
+                    track = next((t for t in deepsort.tracker.tracks if t.track_id == current_id), None)
+                    if track and track.pose_3d is not None:
+                         X_raw, Z_raw, L, W, H, Yaw_raw = track.pose_3d
+                         
+                         # Kalman Filter Refinement
+                         box_3d_raw = {
+                             'location': np.array([X_raw, 0, Z_raw]),
+                             'dimensions': np.array([H, W, L]),
+                             'orientation': Yaw_raw,
+                             'class_name': current_class
+                         }
+                         
+                         if hasattr(bbox3d_estimator, 'refine_box_3d'):
+                            box_3d_refined = bbox3d_estimator.refine_box_3d(box_3d_raw, current_id)
+                            X, _, Z = box_3d_refined['location']
+                            Yaw = box_3d_refined['orientation']
+                         else:
+                            X, Z, Yaw = X_raw, Z_raw, Yaw_raw
+                            
+                         # Speed
+                         src_speed = current_frame_speeds.get(current_id, 0.0)
+                         
+                         # Prepare Draw Data
+                         box_3d_draw = {
+                             'bbox_2d': [x1, y1, x2, y2],
+                             'location': np.array([X, 0, Z]), 
+                             'dimensions': np.array([H, W, L]),
+                             'orientation': Yaw,
+                             'class_name': current_class,
+                             'object_id': current_id,
+                             'depth_value': (Z - 1.0) / 9.0 
+                         }
+                         
+                         # Add to list
+                         risk_sources.append({
+                             'id': current_id,
+                             'x': X, 'z': Z, 'speed': src_speed, 'yaw': Yaw,
+                             'type': car_type, 'dims': np.array([H, W, L]),
+                             'box_3d_draw': box_3d_draw,
+                             'xyxy': [x1, y1, x2, y2],
+                             'conf': conf,
+                             'confidence': conf,
+                             'class_name': current_class
+                         })
+                         
+                         # Update History
+                         track_history[current_id].append((X, Z))
+                         if len(track_history[current_id]) > 50:
+                             track_history[current_id].pop(0)
+                             
+                         current_frame_distances[current_id] = round(Z, 2)
 
-                    track_history[current_id].append((x_pos, z_pos))
-                    if len(track_history[current_id]) > 50:
-                        track_history[current_id].pop(0)
+                # Stage 2: Risk Field Calculation (Global)
+                risk_img = None
+                target_h = im0.shape[0]
+                target_w = 600
+                
+                # Initialize Accumulators
+                total_risk_map = np.zeros((risk_engine.grid_h, risk_engine.grid_w))
+                vis_risk_map = np.zeros((risk_engine.grid_h, risk_engine.grid_w)) # For visualization (larger sigma)
+                
+                ego_v_x, ego_v_z = 0, 5 # Ego velocity (m/s)
+                current_weather_factor = 1.0 
+                
+                max_scf = 0.0
+                max_risk_id = None
+                max_dist_m = 10.0 # Track max distance for Dynamic Zoom
+                
+                frame_scf_values = []
 
-            total_risk_map = np.zeros((risk_engine.grid_h, risk_engine.grid_w), dtype=np.float32)
-            vis_risk_map = np.zeros((risk_engine.grid_h, risk_engine.grid_w), dtype=np.float32)
-            dynamic_risk = 0.0
-            max_risk_id = None
-            ego_v_x, ego_v_z = 0.0, 5.0
-            max_dist_m = 10.0
+                if len(risk_sources) > 0:
+                    for src in risk_sources:
+                        # Physics Calculation
+                        t_x, t_z = src['x'], src['z']
+                        t_speed = src['speed'] / 3.6 # km/h -> m/s
+                        t_yaw = src['yaw']
+                        
+                        # Update max distance
+                        if t_z > max_dist_m: max_dist_m = t_z
+                        
+                        t_v_x = t_speed * np.sin(t_yaw)
+                        t_v_z = t_speed * np.cos(t_yaw)
+                        
+                        # SCF Calculation (Scientific)
+                        scf, ego_f, target_f, overlap = risk_engine.calculate_scf(
+                            (0, 0), (t_x, t_z),
+                            (ego_v_x, ego_v_z), (t_v_x, t_v_z),
+                            weather_factor=current_weather_factor
+                        )
+                        
+                        # Visualization Field (Artistic - Larger)
+                        vis_target_f = risk_engine.get_visualization_field(
+                            t_x, t_z, t_v_x, t_v_z, 
+                            sigma_x=1.8, sigma_z=5.0, # Much larger for "Radar" feel
+                            weather_factor=current_weather_factor
+                        )
+                        
+                        src['scf'] = scf
+                        frame_scf_values.append(scf)
+                        total_risk_map += target_f
+                        vis_risk_map = np.maximum(vis_risk_map, vis_target_f) # Use max to avoid over-saturation
+                        
+                        if scf > max_scf:
+                            max_scf = scf
+                            max_risk_id = src['id']
 
-            for src in risk_sources:
-                target_x = src["x"]
-                target_z = src["z"]
-                target_speed = src["speed"] / 3.6
-                target_yaw = src["yaw"]
+                surface_risk_map, surface_vis_map, surface_risk = road_fuser.build_surface_maps(surface_analysis, risk_engine)
+                total_risk_map += surface_risk_map
+                vis_risk_map = np.maximum(vis_risk_map, surface_vis_map)
+                dynamic_risk = max_scf
+                combined_risk = max(dynamic_risk, surface_risk)
+                if combined_risk >= 0.8:
+                    decision_status = 'HIGH'
+                elif combined_risk >= 0.55:
+                    decision_status = 'MEDIUM'
+                elif combined_risk >= 0.25:
+                    decision_status = 'LOW'
+                else:
+                    decision_status = 'CLEAR'
+                if decision_status == 'CLEAR':
+                    warning_text = 'Path is clear'
+                elif surface_risk >= dynamic_risk and surface_analysis.hazards:
+                    warning_text = f'{decision_status} road surface risk: {surface_analysis.warning_text}'
+                else:
+                    warning_text = f'{decision_status} dynamic object risk ahead'
+                if surface_risk >= dynamic_risk and surface_analysis.hazards:
+                    max_risk_id = 'ROAD'
+                max_scf = combined_risk
+                for hazard in surface_analysis.hazards:
+                    if hazard.z_m > max_dist_m:
+                        max_dist_m = hazard.z_m
 
-                max_dist_m = max(max_dist_m, target_z)
+                # Stage 3: Visualization (Main View - 3D Box with Shadow)
+                for src in risk_sources:
+                    # Draw Box
+                    im0 = bbox3d_estimator.draw_box_3d(im0, src['box_3d_draw'], risk_score=src.get('scf', 0))
+                    # Draw AR Risk Projection (Ellipse on ground)
+                    # DISABLED: User feedback "Cancel red in video area"
+                    # im0 = bbox3d_estimator.draw_risk_projection(im0, src['box_3d_draw'], risk_score=src.get('scf', 0))
 
-                target_v_x = target_speed * np.sin(target_yaw)
-                target_v_z = target_speed * np.cos(target_yaw)
-                scf, ego_field, target_field, overlap = risk_engine.calculate_scf(
-                    (0, 0),
-                    (target_x, target_z),
-                    (ego_v_x, ego_v_z),
-                    (target_v_x, target_v_z),
-                    weather_factor=1.0,
-                )
+                # Stage 4: BEV Generation (Demo Mode)
+                # Always generate BEV even if no sources, to show empty grid
+                
+                # Update Dynamic Zoom
+                bev_visualizer.update_scale(max_dist_m)
+                bev_visualizer.reset()
+                
+                if len(risk_sources) > 0:
+                    # 1. Draw Trajectories & Future Sectors (Background)
+                    for src in risk_sources:
+                        # Trajectory Fading
+                        hist = track_history[src['id']]
+                        bev_visualizer.draw_trajectory_fading(hist)
+                        
+                        # Future Sector
+                        bev_visualizer.draw_future_sector(
+                            src['x'], src['z'], 
+                            src['speed']/3.6, 
+                            src['yaw'], 
+                            risk_level=src.get('scf', 0)
+                        )
+                    
+                    # 2. Draw Vehicles
+                    for src in risk_sources:
+                        box_3d_bev = {
+                            'class_name': src['type'],
+                            'location': np.array([src['x'], 0, src['z']]),
+                            'dimensions': src['dims'],
+                            'orientation': src['yaw'],
+                            'object_id': src['id'],
+                            'depth_value': (src['z'] - 1.0) / 9.0 
+                        }
+                        bev_visualizer.draw_box(box_3d_bev)
+                        
+                    # 3. Draw Risk Heatmap (Glowing Overlay)
+                    # Use vis_risk_map for better visual
+                    total_risk_map_flipped = cv2.flip(vis_risk_map, 0)
+                    bev_visualizer.draw_risk_heatmap(total_risk_map_flipped)
+                    road_visualizer.draw_on_bev(bev_visualizer, surface_analysis)
+                    
+                    # 4. HUD
+                    bev_visualizer.draw_hud(max_scf, max_risk_id, ego_speed=ego_v_z*3.6)
+                    
+                    # Log
+                    avg_scf = sum(frame_scf_values) / len(frame_scf_values) if frame_scf_values else 0.0
+                    try:
+                        with open('vehicle_info.txt', 'a') as f:
+                            for src in risk_sources:
+                                 f.write(f"Frame: {frame}, ID: {src['id']}, Type: {src['type']}, X: {src['x']:.2f}, Z: {src['z']:.2f}, Speed: {src['speed']:.2f}, SCF: {src.get('scf', 0):.4f}, Avg_SCF: {avg_scf:.4f}\n")
+                    except Exception as e:
+                        print(f"Error writing log: {e}")
+                else:
+                    if np.max(vis_risk_map) > 0:
+                        bev_visualizer.draw_risk_heatmap(cv2.flip(vis_risk_map, 0))
+                    road_visualizer.draw_on_bev(bev_visualizer, surface_analysis)
+                    bev_visualizer.draw_hud(max_scf, max_risk_id, ego_speed=ego_v_z*3.6)
+                
+                # Get Image
+                risk_img = bev_visualizer.get_image()
+                
+                # Resize
+                if risk_img.shape[0] != target_h or risk_img.shape[1] != target_w:
+                    risk_img = cv2.resize(risk_img, (target_w, target_h))
 
-                vis_target_f = risk_engine.get_visualization_field(
-                    target_x,
-                    target_z,
-                    target_v_x,
-                    target_v_z,
-                    sigma_x=1.8,
-                    sigma_z=5.0,
-                    weather_factor=1.0,
-                )
 
-                src["scf"] = scf
-                total_risk_map += target_field
-                vis_risk_map = np.maximum(vis_risk_map, vis_target_f)
 
-                if scf > dynamic_risk:
-                    dynamic_risk = scf
-                    max_risk_id = src["id"]
+            # 打印耗时
+            if risk_img is None:
+                target_h = im0.shape[0]
+                target_w = 600
+                ego_v_z = 5
+                max_dist_m = 10.0
+                vis_risk_map = np.zeros((risk_engine.grid_h, risk_engine.grid_w))
+                surface_risk_map, surface_vis_map, surface_risk = road_fuser.build_surface_maps(surface_analysis, risk_engine)
+                vis_risk_map = np.maximum(vis_risk_map, surface_vis_map)
+                combined_risk = max(dynamic_risk, surface_risk)
+                if combined_risk >= 0.8:
+                    decision_status = 'HIGH'
+                elif combined_risk >= 0.55:
+                    decision_status = 'MEDIUM'
+                elif combined_risk >= 0.25:
+                    decision_status = 'LOW'
+                else:
+                    decision_status = 'CLEAR'
+                if decision_status == 'CLEAR':
+                    warning_text = 'Path is clear'
+                elif surface_analysis.hazards:
+                    warning_text = f'{decision_status} road surface risk: {surface_analysis.warning_text}'
+                    max_risk_id = 'ROAD'
+                else:
+                    warning_text = f'{decision_status} dynamic object risk ahead'
+                for hazard in surface_analysis.hazards:
+                    if hazard.z_m > max_dist_m:
+                        max_dist_m = hazard.z_m
 
-            surface_risk_map, surface_vis_map, surface_risk = road_fuser.build_surface_maps(surface_analysis, risk_engine)
-            total_risk_map += surface_risk_map
-            vis_risk_map = np.maximum(vis_risk_map, surface_vis_map)
-            combined_risk = road_fuser.fuse_risk(dynamic_risk, surface_risk)
-            decision_status = get_combined_status(combined_risk)
-            warning_text = build_warning_text(dynamic_risk, surface_risk, combined_risk, surface_analysis)
-            if surface_risk >= dynamic_risk and surface_analysis.hazards:
-                max_risk_id = "ROAD"
+                bev_visualizer.update_scale(max_dist_m)
+                bev_visualizer.reset()
+                if np.max(vis_risk_map) > 0:
+                    bev_visualizer.draw_risk_heatmap(cv2.flip(vis_risk_map, 0))
+                road_visualizer.draw_on_bev(bev_visualizer, surface_analysis)
+                bev_visualizer.draw_hud(combined_risk, max_risk_id, ego_speed=ego_v_z*3.6)
+                risk_img = bev_visualizer.get_image()
+                if risk_img.shape[0] != target_h or risk_img.shape[1] != target_w:
+                    risk_img = cv2.resize(risk_img, (target_w, target_h))
 
-            for src in risk_sources:
-                im0 = bbox3d_estimator.draw_box_3d(im0, src["box_3d_draw"], risk_score=src.get("scf", 0.0))
-
-            draw_combined_status_panel(im0, dynamic_risk, surface_risk, combined_risk, surface_analysis)
-
-            for hazard in surface_analysis.hazards:
-                max_dist_m = max(max_dist_m, hazard.z_m)
-
-            bev_visualizer.update_scale(max_dist_m)
-            bev_visualizer.reset()
-
-            for src in risk_sources:
-                history = track_history[src["id"]]
-                bev_visualizer.draw_trajectory_fading(history)
-                bev_visualizer.draw_future_sector(
-                    src["x"],
-                    src["z"],
-                    src["speed"] / 3.6,
-                    src["yaw"],
-                    risk_level=src.get("scf", 0.0),
-                )
-
-            for src in risk_sources:
-                box_3d_bev = {
-                    "class_name": src["class_name"],
-                    "location": np.array([src["x"], 0, src["z"]]),
-                    "dimensions": src["dims"],
-                    "orientation": src["yaw"],
-                    "object_id": src["id"],
-                    "depth_value": np.clip((src["z"] - 1.0) / 9.0, 0.0, 1.0),
-                    "bbox_2d": src["box_3d_draw"]["bbox_2d"],
-                }
-                bev_visualizer.draw_box(box_3d_bev)
-
-            if np.max(vis_risk_map) > 0:
-                bev_visualizer.draw_risk_heatmap(cv2.flip(vis_risk_map, 0))
-
-            road_visualizer.draw_on_bev(bev_visualizer, surface_analysis)
-            bev_visualizer.draw_hud(combined_risk, max_risk_id, ego_speed=ego_v_z * 3.6)
-            risk_img = bev_visualizer.get_image()
-
-            target_h = im0.shape[0]
-            target_w = 600
-            if risk_img.shape[0] != target_h or risk_img.shape[1] != target_w:
-                risk_img = cv2.resize(risk_img, (target_w, target_h))
+            im0 = road_visualizer.draw_on_frame(im0, surface_analysis)
 
             if structured_writer is not None:
                 frame_record = build_frame_record(
@@ -581,65 +874,101 @@ def detect(save_img=False):
                 )
                 structured_writer.write_frame(frame_record)
 
-            print(f"{s}Done. ({t2 - t1:.3f}s)")
+            print(f'{s}Done. ({t2 - t1:.3f}s)')
 
+            # 显示结果
             if view_img:
                 cv_show(str(p), im0, risk_img)
 
+            # 保存结果
             if save_img:
-                if dataset.mode == "image":
-                    combined_img = np.hstack((im0, risk_img))
-                    image_output = Path(save_path)
-                    output_path = image_output.with_name(f"{image_output.stem}_with_risk{image_output.suffix}")
-                    cv2.imwrite(str(output_path), combined_img)
+                if dataset.mode == 'image':
+                    if risk_img is not None:
+                        combined_img = np.hstack((im0, risk_img))
+                        cv2.imwrite(save_path.replace('.jpg', '_with_risk.jpg'), combined_img)
+                    else:
+                        cv2.imwrite(save_path, im0)
                 else:
                     if vid_path != save_path:
                         vid_path = save_path
                         if isinstance(vid_writer, cv2.VideoWriter):
                             vid_writer.release()
-
                         if vid_cap:
                             fps_vid = vid_cap.get(cv2.CAP_PROP_FPS)
-                            width = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH)) + risk_img.shape[1]
-                            height = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                            w = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                            h = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                            if risk_img is not None:
+                                w += risk_img.shape[1]  # 拼接后宽度增加
                         else:
-                            fps_vid, width, height = 30, im0.shape[1] + risk_img.shape[1], im0.shape[0]
-                            if not save_path.lower().endswith(".mp4"):
-                                save_path += ".mp4"
-
+                            fps_vid, w, h = 30, im0.shape[1], im0.shape[0]
+                            if risk_img is not None:
+                                w += risk_img.shape[1]
+                            save_path += '.mp4'
                         vid_writer = cv2.VideoWriter(
-                            save_path,
-                            cv2.VideoWriter_fourcc(*"mp4v"),
-                            fps_vid,
-                            (width, height),
+                            save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps_vid, (w, h)
                         )
+                    if risk_img is not None:
+                        combined_img = np.hstack((im0, risk_img))
+                        vid_writer.write(combined_img)
+                    else:
+                        vid_writer.write(im0)
 
-                    vid_writer.write(np.hstack((im0, risk_img)))
+        # 【关键】更新上一帧车辆位置（供下一帧计算方向）
+        # risk_sources 现在使用 'z' 代表纵向位置
+        current_centers = {src['id']: (src['x'], src['z']) for src in risk_sources}
+        prev_centers = current_centers
 
-    if isinstance(vid_writer, cv2.VideoWriter):
-        vid_writer.release()
     if structured_writer is not None:
         structured_writer.close()
 
+    # 保存信息
     if save_txt or save_img:
-        labels_msg = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ""
-        structured_msg = f"\nStructured jsonl saved to {structured_writer.output_path}" if structured_writer is not None else ""
-        print(f"Results saved to {save_dir}{labels_msg}{structured_msg}")
+        s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
+        structured_msg = f"\nStructured jsonl saved to {structured_writer.output_path}" if structured_writer is not None else ''
+        print(f"Results saved to {save_dir}{s}{structured_msg}")
     elif structured_writer is not None:
         print(f"Structured jsonl saved to {structured_writer.output_path}")
 
-    print(f"Done. ({time.time() - t0:.3f}s)")
+    # 总耗时
+    print(f'Done. ({time.time() - t0:.3f}s)')
 
 
-if __name__ == "__main__":
-    parser = build_parser()
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--weights', nargs='+', type=str, default='yolov10s.pt', help='model.pt path(s)')
+    parser.add_argument('--source', type=str, default='lanechange.mp4', help='source')  # 输入视频路径
+    parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
+    parser.add_argument('--conf-thres', type=float, default=0.01, help='object confidence threshold')
+    parser.add_argument('--iou-thres', type=float, default=0.01, help='IOU threshold for NMS')
+    parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
+    parser.add_argument('--view-img', dest='view_img', action='store_true', help='display results')
+    parser.add_argument('--no-view-img', dest='view_img', action='store_false', help='disable display results')
+    parser.set_defaults(view_img=True, save_jsonl=True)
+    parser.add_argument('--save-txt', action='store_true', help='save results to *.txt')
+    parser.add_argument('--save-conf', action='store_true', help='save confidences in --save-txt labels')
+    parser.add_argument('--nosave', action='store_true', help='do not save images/videos')
+    parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --class 0, or --class 0 2 3')
+    parser.add_argument('--agnostic-nms', action='store_true', help='class-agnostic NMS')
+    parser.add_argument('--augment', action='store_true', help='augmented inference')
+    parser.add_argument('--update', action='store_true', help='update all models')
+    parser.add_argument('--project', default='runs/detect', help='save results to project/name')
+    parser.add_argument('--name', default='exp', help='save results to project/name')
+    parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
+    parser.add_argument("--config_deepsort", type=str, default="deep_sort/configs/deep_sort.yaml")
+    parser.add_argument('--road-model-dir', type=str, default=str(Path(__file__).resolve().parent / 'code' / 'models'))
+    parser.add_argument('--road-conf-thres', type=float, default=0.25)
+    parser.add_argument('--depth-backend', choices=['depth-anything'], default='depth-anything')
+    parser.add_argument('--max-frames', type=int, default=None)
+    parser.add_argument('--save-jsonl', dest='save_jsonl', action='store_true', help='enable per-frame structured jsonl export')
+    parser.add_argument('--no-save-jsonl', dest='save_jsonl', action='store_false', help='disable per-frame structured jsonl export')
+    parser.add_argument('--structured-dir', type=str, default='structured', help='structured output subdirectory name')
     opt = parser.parse_args()
     print(opt)
-    check_requirements(exclude=("pycocotools", "thop"))
+    check_requirements('requirements_common.txt', exclude=('pycocotools', 'thop'))
 
     with torch.no_grad():
         if opt.update:
-            for opt.weights in ["yolov10s.pt", "yolov10m.pt", "yolov10l.pt", "yolov10x.pt"]:
+            for opt.weights in ['yolov10s.pt', 'yolov10m.pt', 'yolov10l.pt', 'yolov10x.pt']:
                 detect()
                 strip_optimizer(opt.weights)
         else:
