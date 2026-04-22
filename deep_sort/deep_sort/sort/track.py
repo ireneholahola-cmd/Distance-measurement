@@ -170,3 +170,34 @@ class Track:
     def is_deleted(self):
         """Returns True if this track is dead and should be deleted."""
         return self.state == TrackState.Deleted
+
+    def predict_future_trajectory(self, steps=10):
+        """Predict future trajectory using current state and velocity.
+        
+        Parameters
+        ----------
+        steps : int
+            Number of future steps to predict.
+            
+        Returns
+        -------
+        list
+            List of predicted (x, y) positions for future steps.
+        """
+        predictions = []
+        current_state = self.mean.copy()
+        
+        # State vector: [x, y, a, h, vx, vy, va, vh]
+        for _ in range(steps):
+            # Predict next state using constant velocity model
+            # x = x + vx * dt (dt=1)
+            # y = y + vy * dt (dt=1)
+            next_x = current_state[0] + current_state[4]
+            next_y = current_state[1] + current_state[5]
+            predictions.append((next_x, next_y))
+            
+            # Update current state for next prediction
+            current_state[0] = next_x
+            current_state[1] = next_y
+        
+        return predictions
