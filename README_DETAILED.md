@@ -280,13 +280,13 @@ streamlit run app.py
 #### 基本检测
 
 ```bash
-python detect_3d.py --source lanechange.mp4 --no-view-img --nosave --device cpu
+python detect_3d.py --source lanechange.mp4 --nosave --device cpu
 ```
 
 #### 带路面检测的检测
 
 ```bash
-python detect_3d_with_surface.py --source lanechange.mp4 --no-view-img --nosave --device cpu
+python detect_3d_with_surface.py --source lanechange.mp4 --nosave --device cpu
 ```
 
 #### 轨迹预测示例
