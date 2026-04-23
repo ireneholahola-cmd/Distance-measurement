@@ -41,6 +41,7 @@ from road_surface_fusion import (
     StructuredOutputWriter,
     build_frame_record,
 )
+from risk_alerts.sound_processing.alerter import RiskSoundAlerter
 from risk_alerts.warning_prompt import draw_chinese_risk_prompt
 
 import sys
@@ -323,6 +324,7 @@ def detect(save_img=False):
     save_dir = Path(increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok))
     (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)
     structured_writer = None
+    sound_alerter = RiskSoundAlerter()
     if opt.save_jsonl:
         structured_writer = StructuredOutputWriter(save_dir / opt.structured_dir)
         print(f"Structured output will be saved to {structured_writer.output_path}")
@@ -858,7 +860,8 @@ def detect(save_img=False):
             im0 = road_visualizer.draw_on_frame(im0, surface_analysis)
             im0 = draw_chinese_risk_prompt(im0, decision_status)
 
-            if structured_writer is not None:
+            frame_record = None
+            if structured_writer is not None or sound_alerter.enabled:
                 frame_record = build_frame_record(
                     source=str(p),
                     stream_index=i,
@@ -874,7 +877,11 @@ def detect(save_img=False):
                     warning_text=warning_text,
                     max_risk_source=max_risk_id,
                 )
+
+            if structured_writer is not None and frame_record is not None:
                 structured_writer.write_frame(frame_record)
+            if frame_record is not None:
+                sound_alerter.handle_frame_record(frame_record)
 
             print(f'{s}Done. ({t2 - t1:.3f}s)')
 
