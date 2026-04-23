@@ -1,11 +1,10 @@
-# GPU install notes
-# 1. Install a CUDA-enabled PyTorch build that matches the target machine's Python
-#    version and local CUDA runtime first. Example for CUDA 12.1:
+# GPU 安装说明
+# 1. 首先安装支持 CUDA 的 PyTorch 版本，该版本需与目标机器的 Python 版本
+#    和本地 CUDA 运行时版本匹配。以 CUDA 12.1 为例：
 #    pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
-# 2. Then install the remaining project dependencies:
+# 2. 然后安装项目剩余依赖：
 #    pip install -r requirements_gpu.txt
 #
-# torch/torchvision are intentionally not pinned here because different teammates may
-# use different CUDA versions. This avoids one machine's setup breaking another's.
+# 不固定 torch/torchvision 的版本，这样可以避免一台机器的环境配置导致其他成员的环境无法运行。
 
 -r requirements_common.txt

@@ -41,6 +41,7 @@ from road_surface_fusion import (
     StructuredOutputWriter,
     build_frame_record,
 )
+from risk_alerts.warning_prompt import draw_chinese_risk_prompt
 
 import sys
 sys.path.insert(0, './yolov10')
@@ -855,6 +856,7 @@ def detect(save_img=False):
                     risk_img = cv2.resize(risk_img, (target_w, target_h))
 
             im0 = road_visualizer.draw_on_frame(im0, surface_analysis)
+            im0 = draw_chinese_risk_prompt(im0, decision_status)
 
             if structured_writer is not None:
                 frame_record = build_frame_record(

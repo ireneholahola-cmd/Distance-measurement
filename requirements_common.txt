@@ -1,6 +1,6 @@
-# Shared runtime dependencies for local image/video inference.
-# Install either `requirements.txt` (default/CPU) or `requirements_gpu.txt` (GPU setup)
-# so the repository uses one consistent dependency baseline.
+# 本地图像/视频推理所需的共享运行时依赖项。
+# 请安装 requirements.txt（默认/CPU 环境）或 requirements_gpu.txt（GPU 环境）其中之一，
+# 保证项目环境统一
 
 numpy>=1.23.5,<3.0
 opencv-python>=4.8.0,<5.0
