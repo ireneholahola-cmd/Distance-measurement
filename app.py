@@ -7,7 +7,7 @@ import time
 import random
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import detect_3d
+
 
 
 # ─────────────────────────────────────────────
@@ -35,9 +35,15 @@ class DummyOpt:
         self.config_deepsort = 'deep_sort/configs/deep_sort.yaml'
         self.show_img = False
         self.save_img = False
+        self.road_model_dir = 'code/models'
+        self.road_conf_thres = 0.25
+        self.max_frames = None
+        self.save_jsonl = False
+        self.structured_dir = 'structured'
 
-
+import detect_3d_with_surface as detect_3d
 detect_3d.opt = DummyOpt()
+
 
 # ─────────────────────────────────────────────
 #  Page Config
