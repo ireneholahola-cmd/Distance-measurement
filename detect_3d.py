@@ -641,7 +641,7 @@ def detect(save_img=False, callback=None):
                             'xyxy': [x1, y1, x2, y2],
                             'conf': conf,
                             'class_name': current_class,
-                            'distance': dis_m
+                            'distance': Z
                         })
 
                         # Update History
