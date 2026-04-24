@@ -95,12 +95,45 @@ def check_requirements(requirements='requirements.txt', exclude=()):
     # Check installed dependencies meet requirements (pass *.txt file or list of packages)
     import pkg_resources as pkg
     prefix = colorstr('red', 'bold', 'requirements:')
+    
+    def parse_requirements_file(file_path, exclude_list):
+        """Parse a requirements file and handle -r directives recursively."""
+        parsed = []
+        file_path = Path(file_path)
+        if not file_path.exists():
+            return parsed
+        with open(file_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                # Skip empty lines and comments
+                if not line or line.startswith('#'):
+                    continue
+                # Handle -r directive (include other requirements file)
+                if line.startswith('-r '):
+                    included_file = line[3:].strip()
+                    # Resolve path relative to current file's directory
+                    included_path = file_path.parent / included_file
+                    parsed.extend(parse_requirements_file(included_path, exclude_list))
+                # Handle other pip options (-e, -c, --index-url, etc.) - skip them
+                elif line.startswith('-'):
+                    continue
+                # Normal requirement - try to parse it
+                else:
+                    try:
+                        for req in pkg.parse_requirements(line):
+                            if req.name not in exclude_list:
+                                parsed.append(req)
+                    except Exception:
+                        pass
+        return parsed
+    
     if isinstance(requirements, (str, Path)):  # requirements.txt file
         file = Path(requirements)
         if not file.exists():
             print(f"{prefix} {file.resolve()} not found, check failed.")
             return
-        requirements = [f'{x.name}{x.specifier}' for x in pkg.parse_requirements(file.open()) if x.name not in exclude]
+        parsed_reqs = parse_requirements_file(file, exclude)
+        requirements = [f'{x.name}{x.specifier}' for x in parsed_reqs]
     else:  # list or tuple of packages
         requirements = [x for x in requirements if x not in exclude]
 
