@@ -548,7 +548,26 @@ def detect(save_img=False, callback=None):
                 # 过滤有效车辆类型（bicycle, car, motorcycle, bus, truck）
                 valid_classes = {1, 2, 3, 5, 7}
                 valid_outputs = [out for out in outputs if int(out[5]) in valid_classes]
+                # 速度计算（每5帧更新）
+                box_centers = []
+                for each_box in outputs:
+                    if int(each_box[5]) in valid_classes:
+                        center_x = (each_box[0] + each_box[2]) / 2
+                        center_y = (each_box[1] + each_box[3]) / 2
+                        box_centers.append([
+                            center_x, center_y, each_box[4], each_box[5], each_box[2] - each_box[0]
+                        ])
+                location = box_centers
+                locations.append(location)
 
+                if len(locations) == 5:
+                    if len(locations[0]) and len(locations[-1]) != 0:
+                        locations = [locations[0], locations[-1]]
+                        speed_list = Estimated_speed(locations, fps, width)
+                        current_frame_speeds.clear()
+                        for sp in speed_list:
+                            current_frame_speeds[sp[1]] = sp[0]
+                    locations = []
                 # 收集风险源信息（含ID）
                 # ---------------------------------------------------------
                 # NEW LOGIC: Multi-stage Processing for Demo Visualization
@@ -621,7 +640,8 @@ def detect(save_img=False, callback=None):
                             'box_3d_draw': box_3d_draw,
                             'xyxy': [x1, y1, x2, y2],
                             'conf': conf,
-                            'class_name': current_class
+                            'class_name': current_class,
+                            'distance': dis_m
                         })
 
                         # Update History
