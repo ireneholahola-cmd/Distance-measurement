@@ -1,9 +1,11 @@
 import numpy as np
 import cv2
+import os
 from scipy.spatial.transform import Rotation as R
 from filterpy.kalman import KalmanFilter
 from collections import defaultdict
 import math
+from PIL import Image, ImageDraw, ImageFont
 
 # Default camera intrinsic matrix (can be overridden)
 DEFAULT_K = np.array([
@@ -523,19 +525,26 @@ class BBox3DEstimator:
         
         # Auto color selection if not provided
         if color is None:
-            class_name = box_3d.get('class_name', '').lower()
-            if 'car' in class_name or 'vehicle' in class_name:
-                color = (0, 0, 255)  # Red
-            elif 'truck' in class_name or 'bus' in class_name:
-                color = (0, 165, 255)  # Orange
-            elif 'person' in class_name:
-                color = (0, 255, 0)  # Green
-            elif 'bicycle' in class_name or 'motorcycle' in class_name:
-                color = (255, 0, 0)  # Blue
-            elif 'potted plant' in class_name or 'plant' in class_name:
-                color = (0, 255, 255)  # Yellow
+            # === New: Dynamic color based on risk score ===
+            if risk_score > 0.7: # Risk Extremly High
+                color = (0, 0, 255) # Red
+            elif risk_score > 0.3: # Risk High
+                color = (0, 255, 255) # Yellow
             else:
-                color = (0, 255, 0)  # Green default
+                # Default class-based colors
+                class_name = box_3d.get('class_name', '').lower()
+                if 'car' in class_name or 'vehicle' in class_name:
+                    color = (0, 255, 0)  # Green
+                elif 'truck' in class_name or 'bus' in class_name:
+                    color = (0, 165, 255)  # Orange
+                elif 'person' in class_name:
+                    color = (255, 255, 0)  # Cyan
+                elif 'bicycle' in class_name or 'motorcycle' in class_name:
+                    color = (255, 0, 0)  # Blue
+                elif 'potted plant' in class_name or 'plant' in class_name:
+                    color = (0, 255, 255)  # Yellow
+                else:
+                    color = (0, 255, 0)  # Green default
 
         # === Dynamic Shadow Field (Risk Indicator) ===
         # DISABLED based on user feedback "Too much red in video area"
@@ -735,8 +744,9 @@ class BirdEyeView:
         self.camera_height = camera_height
         
         # Default Origin
+        # Move origin significantly up so the radar field sits exactly in the visual center (the red box area)
         self.origin_x = self.width // 2
-        self.origin_y = self.height - 50
+        self.origin_y = self.height // 2 + 100 # roughly 2/3 down the screen to let the field project upwards into the center
         
         # Dynamic Zoom State
         self.target_scale = scale
@@ -754,8 +764,9 @@ class BirdEyeView:
         # Minimum range 10m, Max range 100m
         max_distance_m = max(10.0, min(max_distance_m, 100.0))
         
-        # Calculate required scale to fit max_distance in (height - 100px margin)
-        available_height = self.height - 100
+        # Calculate required scale to fit max_distance in (height - margin)
+        # We want the farthest target to be drawn near the top of the visual center area
+        available_height = self.height // 2  # Adjusted for new origin
         new_scale = available_height / max_distance_m
         
         # Smooth transition
@@ -808,13 +819,14 @@ class BirdEyeView:
                  pts = np.array(points, dtype=np.int32).reshape((-1, 1, 2))
                  cv2.polylines(self.bev_image, [pts], False, (100, 100, 100), 1)
     
-    def draw_box(self, box_3d, color=None):
+    def draw_box(self, box_3d, color=None, risk_score=0.0):
         """
         Draw a more realistic representation of an object on the BEV image
         
         Args:
             box_3d (dict): 3D bounding box parameters
             color (tuple): Color in BGR format (None for automatic color based on class)
+            risk_score (float): Risk value for the object
         """
         try:
             # Extract parameters
@@ -835,20 +847,25 @@ class BirdEyeView:
             else:
                 size_factor = 1.0
             
-            # Determine color based on class
+            # Determine color based on class or risk
             if color is None:
-                if 'car' in class_name or 'vehicle' in class_name:
-                    color = (0, 0, 255)  # Red
-                elif 'truck' in class_name or 'bus' in class_name:
-                    color = (0, 165, 255)  # Orange
-                elif 'person' in class_name:
-                    color = (0, 255, 0)  # Green
-                elif 'bicycle' in class_name or 'motorcycle' in class_name:
-                    color = (255, 0, 0)  # Blue
-                elif 'potted plant' in class_name or 'plant' in class_name:
-                    color = (0, 255, 255)  # Yellow
+                if risk_score > 0.7:
+                    color = (0, 0, 255) # Red
+                elif risk_score > 0.3:
+                    color = (0, 255, 255) # Yellow
                 else:
-                    color = (255, 255, 255)  # White
+                    if 'car' in class_name or 'vehicle' in class_name:
+                        color = (0, 255, 0)  # Green
+                    elif 'truck' in class_name or 'bus' in class_name:
+                        color = (0, 165, 255)  # Orange
+                    elif 'person' in class_name:
+                        color = (255, 255, 0)  # Cyan
+                    elif 'bicycle' in class_name or 'motorcycle' in class_name:
+                        color = (255, 0, 0)  # Blue
+                    elif 'potted plant' in class_name or 'plant' in class_name:
+                        color = (0, 255, 255)  # Yellow
+                    else:
+                        color = (255, 255, 255)  # White
             
             # Get object ID if available
             obj_id = box_3d.get('object_id', None)
@@ -916,6 +933,64 @@ class BirdEyeView:
                 cv2.putText(self.bev_image, f"{obj_id}", 
                            (bev_x - 5, bev_y - 5), 
                            cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+
+            # === New: Natural Language Alert (Using PIL for Chinese) ===
+            # Adjust threshold: Make alerts much harder to trigger so 80% of time it's empty or just "notice"
+            if risk_score > 0.4:  # Increased base threshold significantly (was 0.05)
+                # Decide text and color based on risk severity
+                if risk_score > 0.8:  # Very high threshold for actual warning (was 0.2)
+                    alert_text = "警告：发生危险"
+                    text_color = (0, 0, 0) # Black text
+                    bg_color = (0, 165, 255) # Orange background
+                else:
+                    alert_text = "提示：请注意"
+                    text_color = (0, 0, 0) # Black text
+                    bg_color = (0, 255, 255) # Yellow background
+                
+                # Convert to PIL Image
+                img_pil = Image.fromarray(cv2.cvtColor(self.bev_image, cv2.COLOR_BGR2RGB))
+                draw = ImageDraw.Draw(img_pil)
+                
+                # Try to load a Chinese font, fallback to default
+                try:
+                    font_path = "C:/Windows/Fonts/msyhbd.ttc" # Microsoft YaHei Bold for better visibility
+                    if not os.path.exists(font_path):
+                        font_path = "C:/Windows/Fonts/msyh.ttc"
+                    if not os.path.exists(font_path):
+                        font_path = "deep_sort/DeepSORT_Monet_traffic/simsunttc/simsun.ttc"
+                    
+                    font = ImageFont.truetype(font_path, 16) # Increase font size
+                except:
+                    font = ImageFont.load_default()
+                
+                # Calculate text bounding box for background rectangle
+                try:
+                    # For newer Pillow versions
+                    left, top, right, bottom = draw.textbbox((0, 0), alert_text, font=font)
+                    text_w = right - left
+                    text_h = bottom - top
+                except AttributeError:
+                    # Fallback for older Pillow
+                    text_w, text_h = font.getsize(alert_text)
+                
+                # Draw background rectangle to make text pop
+                padding = 4
+                rect_x1 = bev_x + 10
+                rect_y1 = bev_y - text_h // 2 - padding
+                rect_x2 = rect_x1 + text_w + padding * 2
+                rect_y2 = rect_y1 + text_h + padding * 2
+                
+                # PIL uses RGB, so we need to convert BGR colors to RGB
+                bg_rgb = (bg_color[2], bg_color[1], bg_color[0])
+                text_rgb = (text_color[2], text_color[1], text_color[0])
+                
+                draw.rectangle([rect_x1, rect_y1, rect_x2, rect_y2], fill=bg_rgb)
+                
+                # Draw text
+                draw.text((rect_x1 + padding, rect_y1 + padding - 2), alert_text, font=font, fill=text_rgb)
+                
+                # Convert back to OpenCV
+                self.bev_image = cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
             
             # Draw distance line from origin to object
             cv2.line(self.bev_image, 
@@ -951,9 +1026,65 @@ class BirdEyeView:
             
         risk_uint8 = risk_norm.astype(np.uint8)
         
-        # Resize to match BEV
-        if risk_uint8.shape[:2] != (self.height, self.width):
-            risk_uint8 = cv2.resize(risk_uint8, (self.width, self.height))
+        # We need to map the risk_map (which is based on the physical grid 16m x 25m)
+        # to the BEV image space, taking into account the dynamic scale and origin_y.
+        
+        # Resize risk map to match physical scale in pixels
+        # risk_map represents width_meter x (depth_meter + backward_meter).
+        # We need to pass these values or infer them. Since we changed risk_field.py to have a backward_meter=10
+        # The total physical height is now depth_meter + backward_meter.
+        grid_h, grid_w = risk_map.shape
+        # Convert physical meters to pixels
+        physical_w_px = int((grid_w * 0.1) * self.scale) 
+        physical_h_px = int((grid_h * 0.1) * self.scale)
+        
+        # The zero point of Z in the physical grid is now at index corresponding to backward_meter
+        # If backward_meter is 10, and res is 0.1, the zero point is at index 100.
+        # So the physical distance from the bottom of the grid to the ego vehicle (Z=0) is 10 meters.
+        backward_offset_px = int(10.0 * self.scale)
+        
+        if physical_w_px <= 0 or physical_h_px <= 0: return
+        
+        # Resize risk map to pixel dimensions
+        risk_resized = cv2.resize(risk_uint8, (physical_w_px, physical_h_px))
+        
+        # Create a full-size canvas for the heatmap
+        full_heatmap = np.zeros((self.height, self.width), dtype=np.uint8)
+        
+        # Calculate paste coordinates
+        # X is centered
+        paste_x1 = self.origin_x - physical_w_px // 2
+        paste_x2 = paste_x1 + physical_w_px
+        
+        # Y extends upwards and downwards from origin_y
+        # origin_y corresponds to Z=0.
+        # The grid bottom (Z=-10) should be placed at origin_y + backward_offset_px
+        # The grid top (Z=depth) should be placed at origin_y - (physical_h_px - backward_offset_px)
+        paste_y2 = self.origin_y + backward_offset_px
+        paste_y1 = paste_y2 - physical_h_px
+        
+        # Handle boundary conditions
+        src_x1, src_y1 = 0, 0
+        src_x2, src_y2 = physical_w_px, physical_h_px
+        
+        if paste_x1 < 0:
+            src_x1 = -paste_x1
+            paste_x1 = 0
+        if paste_x2 > self.width:
+            src_x2 = physical_w_px - (paste_x2 - self.width)
+            paste_x2 = self.width
+            
+        if paste_y1 < 0:
+            src_y1 = -paste_y1
+            paste_y1 = 0
+        if paste_y2 > self.height:
+            src_y2 = physical_h_px - (paste_y2 - self.height)
+            paste_y2 = self.height
+            
+        if src_x1 < src_x2 and src_y1 < src_y2 and paste_x1 < paste_x2 and paste_y1 < paste_y2:
+            full_heatmap[paste_y1:paste_y2, paste_x1:paste_x2] = risk_resized[src_y1:src_y2, src_x1:src_x2]
+        
+        risk_uint8 = full_heatmap
             
         # Apply JET Colormap
         heatmap = cv2.applyColorMap(risk_uint8, cv2.COLORMAP_JET)

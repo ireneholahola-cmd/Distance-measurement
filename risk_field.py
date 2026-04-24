@@ -2,33 +2,33 @@ import numpy as np
 import cv2
 
 class RiskFieldEngine:
-    def __init__(self, width_meter=16, depth_meter=25, grid_res=0.1):
+    def __init__(self, width_meter=16, depth_meter=25, backward_meter=10, grid_res=0.1):
         """
         Initialize the Risk Field Engine.
         :param width_meter: Width of the field in meters (X-axis)
-        :param depth_meter: Depth of the field in meters (Z-axis)
+        :param depth_meter: Depth of the field in meters (Z-axis forward)
+        :param backward_meter: Depth of the field in meters (Z-axis backward)
         :param grid_res: Grid resolution in meters
         """
         self.width_meter = width_meter
         self.depth_meter = depth_meter
+        self.backward_meter = backward_meter
         self.grid_res = grid_res
         
         # Grid dimensions
         self.grid_w = int(width_meter / grid_res)
-        self.grid_h = int(depth_meter / grid_res)
+        self.grid_h = int((depth_meter + backward_meter) / grid_res)
         
         # Create meshgrid for vectorized calculations
         # X: -width/2 to width/2
-        # Z: 0 to depth
+        # Z: -backward to depth
         # Note: We use meshgrid 'xy' indexing by default in numpy, but for image we want (row, col)
         # Here we align with image coordinates: row -> Z (up/down), col -> X (left/right)
         
         # X axis (columns): -width/2 ... width/2
         x = np.linspace(-width_meter/2, width_meter/2, self.grid_w)
-        # Z axis (rows): 0 ... depth (usually 0 is bottom, depth is top in BEV, or vice versa)
-        # In our BEV, usually bottom is 0 (near), top is depth (far).
-        # We'll map Z=0 to row=height-1, Z=depth to row=0.
-        z = np.linspace(0, depth_meter, self.grid_h)
+        # Z axis (rows): -backward ... depth
+        z = np.linspace(-backward_meter, depth_meter, self.grid_h)
         
         self.X, self.Z = np.meshgrid(x, z)
         
