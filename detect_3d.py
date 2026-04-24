@@ -592,7 +592,7 @@ def detect(save_img=False, callback=None):
                     # 2D Box Drawing (Base Layer)
                     xyxy = [x1, y1, x2, y2]
                     label = f'{current_class} {conf2:.2f}'
-                    plot_one_box(
+                    dis_m=plot_one_box(
                         xyxy, im0, speed, outputs, time_person,
                         label=label, color=[0, 0, 255], line_thickness=3,
                         name=current_class
@@ -641,7 +641,7 @@ def detect(save_img=False, callback=None):
                             'xyxy': [x1, y1, x2, y2],
                             'conf': conf,
                             'class_name': current_class,
-                            'distance': Z
+                            'distance': dis_m
                         })
 
                         # Update History
@@ -779,7 +779,7 @@ def detect(save_img=False, callback=None):
             if view_img:
                 cv_show(str(p), im0, risk_img)
             if callback is not None:
-                callback(im0, risk_img)
+                callback(im0, risk_img, frame_idx=frame_idx, risk_sources=risk_sources)
 
             # 保存结果
             if save_img:
