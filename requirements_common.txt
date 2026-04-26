@@ -36,3 +36,5 @@ motmetrics>=1.4.0,<2.0
 # UI libraries
 PyQt5>=5.15.0,<6.0
 streamlit>=1.30.0,<2.0
+
+dill>=0.3.0
