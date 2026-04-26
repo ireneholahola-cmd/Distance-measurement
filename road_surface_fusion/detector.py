@@ -8,6 +8,25 @@ import numpy as np
 import torch
 from ultralytics import YOLO
 
+# 修复 PyTorch 2.6+ 的 weights_only 问题
+try:
+    # 猴子补丁修复 torch.load 函数
+    import torch
+    original_load = torch.load
+    
+    def patched_load(f, map_location=None, pickle_module=None, **kwargs):
+        """Patched version that forces weights_only=False"""
+        # 强制设置 weights_only=False
+        kwargs['weights_only'] = False
+        return original_load(f, map_location=map_location, pickle_module=pickle_module, **kwargs)
+    
+    # 应用猴子补丁
+    torch.load = patched_load
+    print("✅ Patched torch.load to use weights_only=False")
+except Exception as e:
+    print(f"Error patching torch.load: {e}")
+    pass
+
 
 class RoadSurfaceDetector:
     """

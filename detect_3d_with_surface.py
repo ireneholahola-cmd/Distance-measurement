@@ -304,7 +304,7 @@ def Estimated_speed(locations, fps, width):
 # --------------------------
 # 主检测函数
 # --------------------------
-def detect(save_img=False):
+def detect(save_img=False, callback=None):
     source, weights, view_img, save_txt, imgsz = opt.source, opt.weights, opt.view_img, opt.save_txt, opt.img_size
     save_img = not opt.nosave and not source.endswith('.txt')
 
@@ -581,6 +581,26 @@ def detect(save_img=False):
                 valid_classes = {0, 1, 2, 3, 5, 7}
                 valid_outputs = [out for out in outputs if int(out[5]) in valid_classes]
 
+                # 速度计算（每5帧更新）
+                box_centers = []
+                for each_box in outputs:
+                    if int(each_box[5]) in valid_classes:
+                        center_x = (each_box[0] + each_box[2]) / 2
+                        center_y = (each_box[1] + each_box[3]) / 2
+                        box_centers.append([
+                            center_x, center_y, each_box[4], each_box[5], each_box[2] - each_box[0]
+                        ])
+                location = box_centers
+                locations.append(location)
+                if len(locations) == 5:
+                    if len(locations[0]) and len(locations[-1]) != 0:
+                        locations = [locations[0], locations[-1]]
+                        speed_list = Estimated_speed(locations, fps, width)
+                        current_frame_speeds.clear()
+                        for sp in speed_list:
+                            current_frame_speeds[sp[1]] = sp[0]
+                    locations = []
+
                 # 收集风险源信息（含ID）
                 # ---------------------------------------------------------
                 # NEW LOGIC: Multi-stage Processing for Demo Visualization
@@ -605,7 +625,7 @@ def detect(save_img=False):
                     # 2D Box Drawing (Base Layer)
                     xyxy = [x1, y1, x2, y2]
                     label = f'{current_class} {conf2:.2f}'
-                    plot_one_box(
+                    dis_m=plot_one_box(
                         xyxy, im0, speed, outputs, time_person,
                         label=label, color=[0, 0, 255], line_thickness=3,
                         name=current_class
@@ -654,7 +674,8 @@ def detect(save_img=False):
                              'xyxy': [x1, y1, x2, y2],
                              'conf': conf,
                              'confidence': conf,
-                             'class_name': current_class
+                             'class_name': current_class,
+                             'distance': dis_m
                          })
                          
                          # Update History
@@ -888,6 +909,8 @@ def detect(save_img=False):
             # 显示结果
             if view_img:
                 cv_show(str(p), im0, risk_img)
+            if callback is not None:
+                callback(im0, risk_img, frame_idx=frame_idx, risk_sources=risk_sources)
 
             # 保存结果
             if save_img:
