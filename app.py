@@ -278,6 +278,9 @@ h1, h2, h3 {
     padding-bottom: 10px;
     margin-bottom: 18px;
 }
+.compact-section-header {
+    margin-bottom: 6px !important;
+}
 
 /* ── Sidebar logo ── */
 .sidebar-logo {
@@ -388,6 +391,40 @@ h1, h2, h3 {
     color: #00e5ff !important;   /* 亮科技蓝 */
     font-weight: 600 !important;
     text-shadow: 0 0 6px rgba(0,191,255,0.6); /* 可选：发光 */
+}
+
+/* Hide Streamlit native chrome */
+[data-testid="stAppDeployButton"],
+.stAppDeployButton,
+#MainMenu,
+[data-testid="stMainMenu"],
+footer {
+    visibility: hidden !important;
+    display: none !important;
+}
+
+[data-testid="stDecoration"] {
+    display: none !important;
+}
+
+[data-testid="stHeader"],
+[data-testid="stToolbar"] {
+    background: transparent !important;
+    pointer-events: none !important;
+    min-height: 0 !important;
+}
+
+[data-testid="stHeader"] {
+    height: 0 !important;
+}
+
+[data-testid="stExpandSidebarButton"] {
+    pointer-events: auto !important;
+    visibility: visible !important;
+}
+
+[data-testid="stMainBlockContainer"] {
+    padding-top: 0 !important;
 }
 </style>
 """
@@ -638,23 +675,23 @@ def render_metrics(placeholder=None):
     alert_count = str(stats['total_alerts'])
 
     html = """
-    <div style="display: flex; gap: 16px;">
+    <div style="display: flex; gap: 6px;">
         <div style="flex: 1; background: var(--bg-card); border: 1px solid var(--border); 
-                    border-radius: 12px; padding: 20px 24px; text-align: center;
+                    border-radius: 12px; padding: 8px 10px; text-align: center;
                     box-shadow: 0 0 20px rgba(0,191,255,0.06);">
-            <div style="font-family: 'Share Tech Mono', monospace; font-size: 0.9rem; 
+            <div style="font-family: 'Share Tech Mono', monospace; font-size: 0.44rem; 
                         color: #00e5ff; letter-spacing: 0.1em; text-transform: uppercase;
-                        margin-bottom: 8px;">目标追踪数</div>
-            <div style="font-family: 'Orbitron', monospace; font-size: 2.2rem; 
+                        margin-bottom: 3px;">目标追踪数</div>
+            <div style="font-family: 'Orbitron', monospace; font-size: 0.96rem; 
                         font-weight: 800; color: #e8eaf0;">""" + track_count + """</div>
         </div>
         <div style="flex: 1; background: var(--bg-card); border: 1px solid var(--border); 
-                    border-radius: 12px; padding: 20px 24px; text-align: center;
+                    border-radius: 12px; padding: 8px 10px; text-align: center;
                     box-shadow: 0 0 20px rgba(0,191,255,0.06);">
-            <div style="font-family: 'Share Tech Mono', monospace; font-size: 0.9rem; 
+            <div style="font-family: 'Share Tech Mono', monospace; font-size: 0.44rem; 
                         color: #00e5ff; letter-spacing: 0.1em; text-transform: uppercase;
-                        margin-bottom: 8px;">告警次数</div>
-            <div style="font-family: 'Orbitron', monospace; font-size: 2.2rem; 
+                        margin-bottom: 3px;">告警次数</div>
+            <div style="font-family: 'Orbitron', monospace; font-size: 0.96rem; 
                         font-weight: 800; color: #e8eaf0;">""" + alert_count + """</div>
         </div>
     </div>
@@ -697,26 +734,26 @@ def render_risk_overview(placeholder=None):
 
     risk_html = f"""
     <div style="background: var(--bg-card); border: 1px solid var(--border); 
-                border-radius: 12px; padding: 20px; text-align: center; height: 100%;">
-        <div style="font-family: 'Orbitron', monospace; font-size: 2.8rem; 
+                border-radius: 12px; padding: 8px; text-align: center; height: 100%;">
+        <div style="font-family: 'Orbitron', monospace; font-size: 1.16rem; 
                     font-weight: 900; color: {risk_color};">
             {risk_index:.3f}
         </div>
-        <div style="font-family: 'Share Tech Mono', monospace; font-size: 0.95rem; 
-                    color: #aaddff; margin-top: 6px;">
+        <div style="font-family: 'Share Tech Mono', monospace; font-size: 0.44rem; 
+                    color: #aaddff; margin-top: 2px;">
             风险指数
         </div>
-        <div style="margin-top: 16px; padding: 0 40px;">
+        <div style="margin-top: 6px; padding: 0 16px;">
             <div class="risk-bar-wrap">
                 <div class="risk-bar-fill" style="width: {risk_progress}%;"></div>
             </div>
         </div>
-        <div style="margin-top: 12px; font-family: 'Orbitron', monospace; 
-                    font-size: 1.2rem; color: {risk_color};">
+        <div style="margin-top: 5px; font-family: 'Orbitron', monospace; 
+                    font-size: 0.56rem; color: {risk_color};">
             {risk_text}
         </div>
-        <div style="margin-top: 16px; font-family: 'Share Tech Mono', monospace; 
-                    font-size: 0.88rem; color: #aabbcc;">
+        <div style="margin-top: 6px; font-family: 'Share Tech Mono', monospace; 
+                    font-size: 0.44rem; color: #aabbcc;">
             跟踪目标数: {stats['track_count']}<br>
             平均风险: {avg_risk:.4f}
         </div>
@@ -728,6 +765,80 @@ def render_risk_overview(placeholder=None):
     else:
         with placeholder:
             st.markdown(risk_html, unsafe_allow_html=True)
+
+
+# ─────────────────────────────────────────────
+#  RISK TREND CHART
+# ─────────────────────────────────────────────
+def render_risk_trend(placeholder=None):
+    from data_store import data_store
+    import altair as alt
+    import pandas as pd
+
+    def _render():
+        trend = data_store.get_risk_trend()
+
+        if not trend:
+            st.markdown(
+                '<div style="background:var(--bg-card);border:1px solid var(--border);'
+                'border-radius:12px;height:168px;display:flex;align-items:center;'
+                'justify-content:center;text-align:center;">'
+                '<span style="font-family:Share Tech Mono,monospace;color:#6b7a99;">'
+                '等待风险趋势数据...</span></div>',
+                unsafe_allow_html=True
+            )
+            return
+
+        df = pd.DataFrame(trend).sort_values("elapsed_second")
+
+        base = alt.Chart(df).encode(
+            x=alt.X(
+                "elapsed_second:Q",
+                title="时间(s)",
+                axis=alt.Axis(format="d", tickMinStep=1)
+            ),
+            y=alt.Y(
+                "risk_score:Q",
+                title="风险大小",
+                scale=alt.Scale(zero=False, nice=True)
+            ),
+            tooltip=[
+                alt.Tooltip("elapsed_second:Q", title="时间(s)", format="d"),
+                alt.Tooltip("risk_score:Q", title="风险大小", format=".3f"),
+                alt.Tooltip("frame_idx:Q", title="帧序号", format="d")
+            ]
+        )
+
+        line = base.mark_line(color="#00bfff", strokeWidth=2, opacity=0.9)
+        points = base.mark_circle(
+            size=46,
+            color="#ffffff",
+            stroke="#ffffff",
+            strokeWidth=1.2,
+            opacity=1.0
+        )
+
+        chart = (line + points).properties(height=154).configure_axis(
+            labelColor="#aabbcc",
+            titleColor="#aaddff",
+            gridColor="#1b3444",
+            domainColor="#26495f",
+            tickColor="#26495f",
+            labelFont="Share Tech Mono",
+            titleFont="Share Tech Mono"
+        ).configure_view(
+            stroke=None
+        ).configure(
+            background="transparent"
+        )
+
+        st.altair_chart(chart, use_container_width=True)
+
+    if placeholder is None:
+        _render()
+    else:
+        with placeholder:
+            _render()
 
 
 # ─────────────────────────────────────────────
@@ -759,58 +870,69 @@ def render_dashboard():
     # ═══════════════════════════════════════════════════════════════
     # 1. 顶部信息区：左侧检测统计 + 右侧风险概览
     # ═══════════════════════════════════════════════════════════════
-    top_left_col, top_right_col = st.columns([1, 1])
+    top_left_col, top_right_col = st.columns([1, 1], gap="medium")
 
     with top_left_col:
-        st.markdown('<div class="section-header">检测数据统计</div>', unsafe_allow_html=True)
-        metrics_placeholder = st.empty()
-        with metrics_placeholder:
-            render_metrics()
+        with st.container(height=224, border=False):
+            st.markdown('<div class="section-header compact-section-header">检测数据统计</div>', unsafe_allow_html=True)
+            metrics_placeholder = st.empty()
+            with metrics_placeholder:
+                render_metrics()
+
+            st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+
+            st.markdown('<div class="section-header compact-section-header">风险概览</div>', unsafe_allow_html=True)
+            risk_overview_placeholder = st.empty()
+            with risk_overview_placeholder:
+                render_risk_overview()
 
     with top_right_col:
-        st.markdown('<div class="section-header">风险概览</div>', unsafe_allow_html=True)
-        risk_overview_placeholder = st.empty()
-        with risk_overview_placeholder:
-            render_risk_overview()
+        with st.container(height=224, border=False):
+            st.markdown('<div class="section-header">实时风险趋势折线图</div>', unsafe_allow_html=True)
+            risk_trend_placeholder = st.empty()
+            with risk_trend_placeholder:
+                render_risk_trend()
 
     st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
 
     # ═══════════════════════════════════════════════════════════════
     # 2. 中部主显示区：左侧实时画面 + 右侧热力图
     # ═══════════════════════════════════════════════════════════════
-    st.markdown('<div class="section-header">实时画面</div>', unsafe_allow_html=True)
+    bottom_left_col, bottom_right_col = st.columns([1, 1], gap="medium")
 
-    vid_col, risk_col = st.columns([3, 1])
+    with bottom_left_col:
+        with st.container(height=448, border=False):
+            st.markdown('<div class="section-header">实时画面</div>', unsafe_allow_html=True)
+            st.markdown("""
+            <div class="video-container">
+                <div class="video-header">📹 摄像头画面</div>
+            </div>
+            """, unsafe_allow_html=True)
+            video_placeholder = st.empty()
+            video_placeholder.markdown(
+                '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;'
+                'height:320px;display:flex;align-items:center;justify-content:center;text-align:center;">'
+                '<span style="font-family:Share Tech Mono,monospace;color:#6b7a99;">等待视频源...</span>'
+                '</div>',
+                unsafe_allow_html=True
+            )
 
-    with vid_col:
-        st.markdown("""
-        <div class="video-container">
-            <div class="video-header">📹 摄像头画面</div>
-        </div>
-        """, unsafe_allow_html=True)
-        video_placeholder = st.empty()
-        video_placeholder.markdown(
-            '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;'
-            'padding:40px;text-align:center;">'
-            '<span style="font-family:Share Tech Mono,monospace;color:#6b7a99;">等待视频源...</span>'
-            '</div>',
-            unsafe_allow_html=True
-        )
-
-    with risk_col:
-        st.markdown("""
-        <div class="video-container">
-            <div class="video-header">🔥 风险热力图</div>
-        </div>
-        """, unsafe_allow_html=True)
-        risk_placeholder = st.empty()
-        risk_placeholder.markdown(
-            '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;'
-            'padding:40px;text-align:center;">'
-            '<span style="font-family:Share Tech Mono,monospace;color:#99aabb;">等待风险数据...</span>'
-            '</div>',
-            unsafe_allow_html=True
-        )
+    with bottom_right_col:
+        with st.container(height=448, border=False):
+            st.markdown('<div class="section-header">风险热力图</div>', unsafe_allow_html=True)
+            st.markdown("""
+            <div class="video-container">
+                <div class="video-header">🔥 风险热力图</div>
+            </div>
+            """, unsafe_allow_html=True)
+            risk_placeholder = st.empty()
+            risk_placeholder.markdown(
+                '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;'
+                'height:320px;display:flex;align-items:center;justify-content:center;text-align:center;">'
+                '<span style="font-family:Share Tech Mono,monospace;color:#99aabb;">等待风险数据...</span>'
+                '</div>',
+                unsafe_allow_html=True
+            )
 
     st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
 
@@ -845,6 +967,10 @@ def render_dashboard():
 
         detect_3d.opt.source = source
         detect_3d.opt.view_img = False
+        video_fps = None
+
+        from data_store import data_store
+        data_store.reset()
 
         progress_bar = st.sidebar.progress(0)
         status_text = st.sidebar.empty()
@@ -868,13 +994,24 @@ def render_dashboard():
 
             if risk_sources is not None:
                 alert_triggered = any(src.get('scf', 0) > 510 for src in risk_sources)
-                data_store.update_frame(frame_idx if frame_idx is not None else 0, risk_sources, alert_triggered)
+                elapsed_second = None
+                if frame_idx is not None and video_fps is not None:
+                    elapsed_second = frame_idx / video_fps
+
+                data_store.update_frame(
+                    frame_idx if frame_idx is not None else 0,
+                    risk_sources,
+                    alert_triggered,
+                    elapsed_second=elapsed_second
+                )
 
                 # 更新所有占位符
                 with metrics_placeholder:
                     render_metrics()
                 with risk_overview_placeholder:
                     render_risk_overview()
+                with risk_trend_placeholder:
+                    render_risk_trend()
                 with realtime_placeholder:
                     render_realtime_panel()
 
@@ -893,7 +1030,12 @@ def render_dashboard():
             if source_option != "摄像头":
                 cap = cv2.VideoCapture(source)
                 total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                video_fps = cap.get(cv2.CAP_PROP_FPS)
                 cap.release()
+                if total_frames <= 0:
+                    total_frames = None
+                if not video_fps or not np.isfinite(video_fps) or video_fps <= 0:
+                    video_fps = None
             else:
                 total_frames = None
 
