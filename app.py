@@ -836,12 +836,12 @@ def render_risk_trend(placeholder=None):
             )
             return
 
-        df = pd.DataFrame(trend).sort_values("elapsed_second")
+        df = pd.DataFrame(trend).sort_values("frame_idx")
 
         base = alt.Chart(df).encode(
             x=alt.X(
-                "elapsed_second:Q",
-                title="时间(s)",
+                "frame_idx:Q",
+                title="帧序号",
                 axis=alt.Axis(format="d", tickMinStep=1)
             ),
             y=alt.Y(
@@ -850,9 +850,8 @@ def render_risk_trend(placeholder=None):
                 scale=alt.Scale(zero=False, nice=True)
             ),
             tooltip=[
-                alt.Tooltip("elapsed_second:Q", title="时间(s)", format="d"),
-                alt.Tooltip("risk_score:Q", title="风险大小", format=".3f"),
-                alt.Tooltip("frame_idx:Q", title="帧序号", format="d")
+                alt.Tooltip("frame_idx:Q", title="帧序号", format="d"),
+                alt.Tooltip("risk_score:Q", title="整帧风险", format=".3f")
             ]
         )
 
@@ -1014,7 +1013,6 @@ def render_dashboard():
 
         detect_3d.opt.source = source
         detect_3d.opt.view_img = False
-        video_fps = None
 
         from data_store import data_store
         data_store.reset()
@@ -1022,7 +1020,7 @@ def render_dashboard():
         progress_bar = st.sidebar.progress(0)
         status_text = st.sidebar.empty()
 
-        def callback(im0, risk_img, frame_idx=None, total_frames=None, risk_sources=None):
+        def callback(im0, risk_img, frame_idx=None, total_frames=None, risk_sources=None, frame_risk=None):
             import streamlit as st
             from data_store import data_store
 
@@ -1041,15 +1039,12 @@ def render_dashboard():
 
             if risk_sources is not None:
                 alert_triggered = any(src.get('scf', 0) > 510 for src in risk_sources)
-                elapsed_second = None
-                if frame_idx is not None and video_fps is not None:
-                    elapsed_second = frame_idx / video_fps
 
                 data_store.update_frame(
                     frame_idx if frame_idx is not None else 0,
                     risk_sources,
                     alert_triggered,
-                    elapsed_second=elapsed_second
+                    frame_risk_score=frame_risk
                 )
 
                 # 更新所有占位符
@@ -1077,12 +1072,9 @@ def render_dashboard():
             if source_option != "摄像头":
                 cap = cv2.VideoCapture(source)
                 total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                video_fps = cap.get(cv2.CAP_PROP_FPS)
                 cap.release()
                 if total_frames <= 0:
                     total_frames = None
-                if not video_fps or not np.isfinite(video_fps) or video_fps <= 0:
-                    video_fps = None
             else:
                 total_frames = None
 

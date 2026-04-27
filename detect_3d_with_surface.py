@@ -910,7 +910,7 @@ def detect(save_img=False, callback=None):
             if view_img:
                 cv_show(str(p), im0, risk_img)
             if callback is not None:
-                callback(im0, risk_img, frame_idx=frame_idx, risk_sources=risk_sources)
+                callback(im0, risk_img, frame_idx=frame_idx, risk_sources=risk_sources, frame_risk=combined_risk)
 
             # 保存结果
             if save_img:

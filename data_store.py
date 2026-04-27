@@ -60,7 +60,7 @@ class DetectionDataStore:
         frame_idx: int,
         risk_sources: List[Dict[str, Any]],
         alert_triggered: bool = False,
-        elapsed_second: Optional[float] = None
+        frame_risk_score: Optional[float] = None
     ):
         with self._lock:
             self._current_frame_idx = frame_idx
@@ -117,31 +117,30 @@ class DetectionDataStore:
 
             self._current_objects = detection_objects
             self._frame_history.append(frame_data)
-            self._update_risk_trend(elapsed_second, max_risk, frame_idx)
+            self._update_risk_trend(frame_idx, frame_risk_score)
 
-    def _update_risk_trend(self, elapsed_second: Optional[float], risk_score: float, frame_idx: int):
-        if elapsed_second is None:
+    def _update_risk_trend(self, frame_idx: int, risk_score: Optional[float]):
+        if risk_score is None:
             return
 
         try:
-            second = int(elapsed_second)
+            trend_frame_idx = int(frame_idx)
+            trend_risk_score = float(risk_score)
         except (TypeError, ValueError):
             return
 
-        if second < 0:
+        if trend_frame_idx < 0:
             return
 
         point = {
-            'elapsed_second': second,
-            'risk_score': float(risk_score),
-            'frame_idx': frame_idx,
+            'frame_idx': trend_frame_idx,
+            'risk_score': trend_risk_score,
             'timestamp': time.time()
         }
 
         for existing in reversed(self._risk_trend):
-            if existing['elapsed_second'] == second:
-                if risk_score > existing['risk_score']:
-                    existing.update(point)
+            if existing['frame_idx'] == trend_frame_idx:
+                existing.update(point)
                 return
 
         self._risk_trend.append(point)
