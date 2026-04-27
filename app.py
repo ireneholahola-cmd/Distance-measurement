@@ -49,7 +49,7 @@ detect_3d.opt = DummyOpt()
 #  Page Config
 # ─────────────────────────────────────────────
 st.set_page_config(
-    page_title="驭安 DriveSafe",
+    page_title="智驭安 DriveSafe",
     layout="wide",
     page_icon="🚗",
     initial_sidebar_state="expanded"
@@ -882,7 +882,7 @@ def render_login():
             <div class="login-logo">&#9651; DriveSafe</div>
             <div style="font-family:'Orbitron',monospace;font-size:0.78rem;
                         letter-spacing:0.18em;color:#6b7a99;margin-bottom:2px;">
-                驭安DriveSafe主动安全预警系统
+                智驭安DriveSafe智能驾驶风险预警系统
             </div>
             <div class="login-divider"></div>
             <div style="font-family:'Share Tech Mono',monospace;font-size:0.68rem;
@@ -969,7 +969,7 @@ def render_sidebar():
     with st.sidebar:
         st.markdown("""
         <div class="sidebar-logo">&#9651; DRIVESAFE</div>
-        <div class="sidebar-version">主动安全预警系统 v2.1</div>
+        <div class="sidebar-version">智能驾驶风险预警系统 </div>
         """, unsafe_allow_html=True)
 
         st.markdown("---")
@@ -1057,7 +1057,7 @@ def render_sidebar():
         <div style="margin-top:24px;font-family:'Share Tech Mono',monospace;
                     font-size:0.58rem;color:#2a3448;letter-spacing:0.14em;
                     text-align:center;">
-            (C) 2025 驭安智能科技
+            (C) 2026 智驭安智能科技
         </div>
         """, unsafe_allow_html=True)
 
@@ -1277,7 +1277,7 @@ def render_dashboard():
     with h_col1:
         st.markdown("""
         <div class="page-title">&#9651; DRIVE<span>SAFE</span></div>
-        <div class="page-subtitle">主动安全预警系统</div>
+        <div class="page-subtitle">智能驾驶风险预警系统</div>
         """, unsafe_allow_html=True)
     with h_col2:
         now = time.strftime("%Y-%m-%d  %H:%M:%S")
@@ -1374,8 +1374,8 @@ def render_dashboard():
     <div style="margin-top:32px;padding-top:16px;border-top:1px solid rgba(0,191,255,0.1);
                 font-family:'Share Tech Mono',monospace;font-size:0.7rem;
                 color:#667788;letter-spacing:0.16em;text-align:center;">
-        DRIVESAFE 主动安全预警系统 &nbsp;|&nbsp; YOLOV10S + DEEPSORT + 3D风险引擎
-        &nbsp;|&nbsp; (C) 2026 驭安智能科技有限公司
+        DRIVESAFE 智能驾驶风险预警系统 &nbsp;|&nbsp; YOLOV10S + DEEPSORT + 3D风险引擎
+        &nbsp;|&nbsp; (C) 2026 智驭安智能科技
     </div>
     """, unsafe_allow_html=True)
 
