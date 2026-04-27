@@ -215,6 +215,28 @@ h1, h2, h3 {
     text-transform: uppercase;
 }
 
+[data-testid="stImage"] {
+    width: 100% !important;
+    min-height: 320px !important;
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 0 20px rgba(0,191,255,0.08) !important;
+    overflow: hidden !important;
+}
+
+[data-testid="stImage"] > div,
+[data-testid="stImage"] img {
+    width: 100% !important;
+}
+
+[data-testid="stImage"] img {
+    height: 320px !important;
+    object-fit: contain !important;
+    background: var(--bg-card) !important;
+    display: block !important;
+}
+
 /* ── Dataframe / table ── */
 [data-testid="stDataFrame"] {
     border: 1px solid var(--border) !important;
@@ -661,6 +683,31 @@ def render_sidebar():
         """, unsafe_allow_html=True)
 
     return source_option, source, start_btn, stop_btn
+
+
+def build_media_placeholder_frame(accent_rgb):
+    frame = np.full((360, 640, 3), (17, 22, 32), dtype=np.uint8)
+    grid_color = np.array((20, 31, 43), dtype=np.uint8)
+    accent = np.array(accent_rgb, dtype=np.uint8)
+
+    frame[::40, :, :] = grid_color
+    frame[:, ::40, :] = grid_color
+    frame[0:2, :, :] = accent
+    frame[-2:, :, :] = accent
+    frame[:, 0:2, :] = accent
+    frame[:, -2:, :] = accent
+
+    cx, cy = 320, 180
+    frame[cy - 2:cy + 2, cx - 54:cx + 54, :] = accent
+    frame[cy - 36:cy + 36, cx - 2:cx + 2, :] = accent
+    frame[cy - 26:cy + 26, cx - 42:cx + 42, :] = (
+        frame[cy - 26:cy + 26, cx - 42:cx + 42, :] // 2 + accent // 5
+    )
+    return frame
+
+
+VIDEO_PLACEHOLDER_FRAME = build_media_placeholder_frame((0, 191, 255))
+RISK_PLACEHOLDER_FRAME = build_media_placeholder_frame((232, 48, 58))
 
 
 # ─────────────────────────────────────────────
