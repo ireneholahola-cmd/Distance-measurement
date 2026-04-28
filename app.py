@@ -8,6 +8,8 @@ import random
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+
+
 # ─────────────────────────────────────────────
 #  DummyOpt
 # ─────────────────────────────────────────────
@@ -39,14 +41,15 @@ class DummyOpt:
         self.save_jsonl = False
         self.structured_dir = 'structured'
 
-import  detect_3d
+import detect_3d_with_surface as detect_3d
 detect_3d.opt = DummyOpt()
+
 
 # ─────────────────────────────────────────────
 #  Page Config
 # ─────────────────────────────────────────────
 st.set_page_config(
-    page_title="驭安 DriveSafe",
+    page_title="智驭安 DriveSafe",
     layout="wide",
     page_icon="🚗",
     initial_sidebar_state="expanded"
@@ -71,10 +74,10 @@ if 'frames_processed' not in st.session_state:
 if 'theme_mode' not in st.session_state:
     st.session_state.theme_mode = 'dark' # 默认为暗色主题
 
-# ─────────────────────────────────────────────
-#  CSS Themes
-# ─────────────────────────────────────────────
 
+# ─────────────────────────────────────────────
+#  Global CSS — Tesla Dark Tech Theme
+# ─────────────────────────────────────────────
 # 深色主题 CSS
 DARK_CSS = """
 <style>
@@ -231,6 +234,28 @@ h1, h2, h3 {
     margin-bottom: 10px;
     text-align: center;
     text-transform: uppercase;
+}
+
+[data-testid="stImage"] {
+    width: 100% !important;
+    min-height: 320px !important;
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 0 20px rgba(0,191,255,0.08) !important;
+    overflow: hidden !important;
+}
+
+[data-testid="stImage"] > div,
+[data-testid="stImage"] img {
+    width: 100% !important;
+}
+
+[data-testid="stImage"] img {
+    height: 320px !important;
+    object-fit: fill !important;
+    background: var(--bg-card) !important;
+    display: block !important;
 }
 
 /* ── Dataframe / table ── */
@@ -446,6 +471,8 @@ footer {
 }
 </style>
 """
+
+
 
 # 浅色/白天主题 CSS
 LIGHT_CSS = """
@@ -803,7 +830,6 @@ footer {
 </style>
 """
 
-
 # 根据当前主题模式返回对应的CSS
 def get_global_css():
     if st.session_state.theme_mode == 'light':
@@ -813,6 +839,7 @@ def get_global_css():
 
 # 应用当前CSS
 st.markdown(get_global_css(), unsafe_allow_html=True)
+
 
 # ─────────────────────────────────────────────
 #  LOGIN PAGE
@@ -855,11 +882,11 @@ def render_login():
             <div class="login-logo">&#9651; DriveSafe</div>
             <div style="font-family:'Orbitron',monospace;font-size:0.78rem;
                         letter-spacing:0.18em;color:#6b7a99;margin-bottom:2px;">
-                驭安DriveSafe主动安全预警系统
+                智驭安DriveSafe智能驾驶风险预警系统
             </div>
             <div class="login-divider"></div>
             <div style="font-family:'Share Tech Mono',monospace;font-size:0.68rem;
-                        letter-spacing:0.2em;color:#00bfff;text-align:left;
+                        letter-spacing:0.2em;color:#00bfff;text-align:center;
                         margin-bottom:6px;">用户认证</div>
         </div>
         """, unsafe_allow_html=True)
@@ -942,7 +969,7 @@ def render_sidebar():
     with st.sidebar:
         st.markdown("""
         <div class="sidebar-logo">&#9651; DRIVESAFE</div>
-        <div class="sidebar-version">主动安全预警系统 v2.1</div>
+        <div class="sidebar-version">智能驾驶风险预警系统 </div>
         """, unsafe_allow_html=True)
 
         st.markdown("---")
@@ -1030,11 +1057,36 @@ def render_sidebar():
         <div style="margin-top:24px;font-family:'Share Tech Mono',monospace;
                     font-size:0.58rem;color:#2a3448;letter-spacing:0.14em;
                     text-align:center;">
-            (C) 2025 驭安智能科技
+            (C) 2026 智驭安智能科技
         </div>
         """, unsafe_allow_html=True)
 
     return source_option, source, start_btn, stop_btn
+
+
+def build_media_placeholder_frame(accent_rgb):
+    frame = np.full((360, 640, 3), (17, 22, 32), dtype=np.uint8)
+    grid_color = np.array((20, 31, 43), dtype=np.uint8)
+    accent = np.array(accent_rgb, dtype=np.uint8)
+
+    frame[::40, :, :] = grid_color
+    frame[:, ::40, :] = grid_color
+    frame[0:2, :, :] = accent
+    frame[-2:, :, :] = accent
+    frame[:, 0:2, :] = accent
+    frame[:, -2:, :] = accent
+
+    cx, cy = 320, 180
+    frame[cy - 2:cy + 2, cx - 54:cx + 54, :] = accent
+    frame[cy - 36:cy + 36, cx - 2:cx + 2, :] = accent
+    frame[cy - 26:cy + 26, cx - 42:cx + 42, :] = (
+        frame[cy - 26:cy + 26, cx - 42:cx + 42, :] // 2 + accent // 5
+    )
+    return frame
+
+
+VIDEO_PLACEHOLDER_FRAME = build_media_placeholder_frame((0, 191, 255))
+RISK_PLACEHOLDER_FRAME = build_media_placeholder_frame((232, 48, 58))
 
 
 # ─────────────────────────────────────────────
@@ -1096,7 +1148,7 @@ def render_risk_overview(placeholder=None):
 
     risk_progress = min(max(0, (risk_index - 400) / 120 * 100), 100)
 
-    if risk_index >= 510:
+    if risk_index >= 610:
         risk_text = "高风险"
         risk_color = "#e8303a"
     elif risk_index >= 500:
@@ -1163,12 +1215,12 @@ def render_risk_trend(placeholder=None):
             )
             return
 
-        df = pd.DataFrame(trend).sort_values("elapsed_second")
+        df = pd.DataFrame(trend).sort_values("frame_idx")
 
         base = alt.Chart(df).encode(
             x=alt.X(
-                "elapsed_second:Q",
-                title="时间(s)",
+                "frame_idx:Q",
+                title="帧序号",
                 axis=alt.Axis(format="d", tickMinStep=1)
             ),
             y=alt.Y(
@@ -1177,9 +1229,8 @@ def render_risk_trend(placeholder=None):
                 scale=alt.Scale(zero=False, nice=True)
             ),
             tooltip=[
-                alt.Tooltip("elapsed_second:Q", title="时间(s)", format="d"),
-                alt.Tooltip("risk_score:Q", title="风险大小", format=".3f"),
-                alt.Tooltip("frame_idx:Q", title="帧序号", format="d")
+                alt.Tooltip("frame_idx:Q", title="帧序号", format="d"),
+                alt.Tooltip("risk_score:Q", title="整帧风险", format=".3f")
             ]
         )
 
@@ -1226,7 +1277,7 @@ def render_dashboard():
     with h_col1:
         st.markdown("""
         <div class="page-title">&#9651; DRIVE<span>SAFE</span></div>
-        <div class="page-subtitle">主动安全预警系统</div>
+        <div class="page-subtitle">智能驾驶风险预警系统</div>
         """, unsafe_allow_html=True)
     with h_col2:
         now = time.strftime("%Y-%m-%d  %H:%M:%S")
@@ -1323,8 +1374,8 @@ def render_dashboard():
     <div style="margin-top:32px;padding-top:16px;border-top:1px solid rgba(0,191,255,0.1);
                 font-family:'Share Tech Mono',monospace;font-size:0.7rem;
                 color:#667788;letter-spacing:0.16em;text-align:center;">
-        DRIVESAFE 主动安全预警系统 &nbsp;|&nbsp; YOLOV10S + DEEPSORT + 3D风险引擎
-        &nbsp;|&nbsp; (C) 2026 驭安智能科技有限公司
+        DRIVESAFE 智能驾驶风险预警系统 &nbsp;|&nbsp; YOLOV10S + DEEPSORT + 3D风险引擎
+        &nbsp;|&nbsp; (C) 2026 智驭安智能科技
     </div>
     """, unsafe_allow_html=True)
 
@@ -1341,7 +1392,6 @@ def render_dashboard():
 
         detect_3d.opt.source = source
         detect_3d.opt.view_img = False
-        video_fps = None
 
         from data_store import data_store
         data_store.reset()
@@ -1349,7 +1399,7 @@ def render_dashboard():
         progress_bar = st.sidebar.progress(0)
         status_text = st.sidebar.empty()
 
-        def callback(im0, risk_img, frame_idx=None, total_frames=None, risk_sources=None):
+        def callback(im0, risk_img, frame_idx=None, total_frames=None, risk_sources=None, frame_risk=None):
             import streamlit as st
             from data_store import data_store
 
@@ -1364,19 +1414,17 @@ def render_dashboard():
 
             if risk_img is not None:
                 risk_rgb = cv2.cvtColor(risk_img, cv2.COLOR_BGR2RGB)
+                risk_rgb = cv2.resize(risk_rgb, (640, 320), interpolation=cv2.INTER_LINEAR)
                 risk_placeholder.image(risk_rgb, channels="RGB", use_container_width=True)
 
             if risk_sources is not None:
                 alert_triggered = any(src.get('scf', 0) > 510 for src in risk_sources)
-                elapsed_second = None
-                if frame_idx is not None and video_fps is not None:
-                    elapsed_second = frame_idx / video_fps
 
                 data_store.update_frame(
                     frame_idx if frame_idx is not None else 0,
                     risk_sources,
                     alert_triggered,
-                    elapsed_second=elapsed_second
+                    frame_risk_score=frame_risk
                 )
 
                 # 更新所有占位符
@@ -1404,12 +1452,9 @@ def render_dashboard():
             if source_option != "摄像头":
                 cap = cv2.VideoCapture(source)
                 total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                video_fps = cap.get(cv2.CAP_PROP_FPS)
                 cap.release()
                 if total_frames <= 0:
                     total_frames = None
-                if not video_fps or not np.isfinite(video_fps) or video_fps <= 0:
-                    video_fps = None
             else:
                 total_frames = None
 

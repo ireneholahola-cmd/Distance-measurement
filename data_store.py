@@ -49,12 +49,19 @@ class DetectionDataStore:
         self._initialized = True
         self._current_objects: List[DetectionObject] = []
         self._frame_history: deque = deque(maxlen=300)
+        self._risk_trend: List[Dict[str, Any]] = []
         self._current_frame_idx: int = 0
         self._total_frames: int = 0
         self._total_alerts: int = 0
         self._lock = threading.Lock()
 
-    def update_frame(self, frame_idx: int, risk_sources: List[Dict[str, Any]], alert_triggered: bool = False):
+    def update_frame(
+        self,
+        frame_idx: int,
+        risk_sources: List[Dict[str, Any]],
+        alert_triggered: bool = False,
+        frame_risk_score: Optional[float] = None
+    ):
         with self._lock:
             self._current_frame_idx = frame_idx
             self._total_frames = frame_idx + 1
@@ -110,6 +117,33 @@ class DetectionDataStore:
 
             self._current_objects = detection_objects
             self._frame_history.append(frame_data)
+            self._update_risk_trend(frame_idx, frame_risk_score)
+
+    def _update_risk_trend(self, frame_idx: int, risk_score: Optional[float]):
+        if risk_score is None:
+            return
+
+        try:
+            trend_frame_idx = int(frame_idx)
+            trend_risk_score = float(risk_score)
+        except (TypeError, ValueError):
+            return
+
+        if trend_frame_idx < 0:
+            return
+
+        point = {
+            'frame_idx': trend_frame_idx,
+            'risk_score': trend_risk_score,
+            'timestamp': time.time()
+        }
+
+        for existing in reversed(self._risk_trend):
+            if existing['frame_idx'] == trend_frame_idx:
+                existing.update(point)
+                return
+
+        self._risk_trend.append(point)
 
     def _calculate_risk_level(self, risk_score: float) -> str:
         if risk_score >= 510:
@@ -156,6 +190,10 @@ class DetectionDataStore:
                 return self._frame_history[-1]
             return None
 
+    def get_risk_trend(self) -> List[Dict[str, Any]]:
+        with self._lock:
+            return [point.copy() for point in self._risk_trend]
+
     def get_stats(self) -> Dict[str, Any]:
         with self._lock:
             current_objs = self._current_objects
@@ -180,6 +218,7 @@ class DetectionDataStore:
         with self._lock:
             self._current_objects = []
             self._frame_history.clear()
+            self._risk_trend.clear()
             self._current_frame_idx = 0
             self._total_frames = 0
             self._total_alerts = 0

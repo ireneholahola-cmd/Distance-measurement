@@ -1,5 +1,5 @@
-# Default install for local inference on CPU or machines without a dedicated NVIDIA setup.
-# If you already installed a CUDA-enabled PyTorch manually, prefer `requirements_gpu.txt`.
+# 默认安装方式：用于 CPU 运行推理，或电脑没有 NVIDIA 独显的情况。
+# 如果你已经手动装过 GPU 版 PyTorch，那就用 GPU 版的依赖文件 requirements_gpu.txt。
 
 -r requirements_common.txt
 
