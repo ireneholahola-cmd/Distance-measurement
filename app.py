@@ -8,8 +8,6 @@ import random
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-
-
 # ─────────────────────────────────────────────
 #  DummyOpt
 # ─────────────────────────────────────────────
@@ -41,9 +39,8 @@ class DummyOpt:
         self.save_jsonl = False
         self.structured_dir = 'structured'
 
-import detect_3d_with_surface as detect_3d
+import  detect_3d
 detect_3d.opt = DummyOpt()
-
 
 # ─────────────────────────────────────────────
 #  Page Config
@@ -56,9 +53,30 @@ st.set_page_config(
 )
 
 # ─────────────────────────────────────────────
-#  Global CSS — Tesla Dark Tech Theme
+#  Session State Init
 # ─────────────────────────────────────────────
-GLOBAL_CSS = """
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+if 'detection_done' not in st.session_state:
+    st.session_state.detection_done = False
+if 'stop_detection' not in st.session_state:
+    st.session_state.stop_detection = False
+if 'login_error' not in st.session_state:
+    st.session_state.login_error = False
+if 'alert_count' not in st.session_state:
+    st.session_state.alert_count = 0
+if 'frames_processed' not in st.session_state:
+    st.session_state.frames_processed = 0
+# --- 新增：初始化主题模式 ---
+if 'theme_mode' not in st.session_state:
+    st.session_state.theme_mode = 'dark' # 默认为暗色主题
+
+# ─────────────────────────────────────────────
+#  CSS Themes
+# ─────────────────────────────────────────────
+
+# 深色主题 CSS
+DARK_CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap');
 
@@ -278,6 +296,9 @@ h1, h2, h3 {
     padding-bottom: 10px;
     margin-bottom: 18px;
 }
+.compact-section-header {
+    margin-bottom: 6px !important;
+}
 
 /* ── Sidebar logo ── */
 .sidebar-logo {
@@ -389,32 +410,442 @@ h1, h2, h3 {
     font-weight: 600 !important;
     text-shadow: 0 0 6px rgba(0,191,255,0.6); /* 可选：发光 */
 }
+
+/* Hide Streamlit native chrome */
+[data-testid="stAppDeployButton"],
+.stAppDeployButton,
+#MainMenu,
+[data-testid="stMainMenu"],
+footer {
+    visibility: hidden !important;
+    display: none !important;
+}
+
+[data-testid="stDecoration"] {
+    display: none !important;
+}
+
+[data-testid="stHeader"],
+[data-testid="stToolbar"] {
+    background: transparent !important;
+    pointer-events: none !important;
+    min-height: 0 !important;
+}
+
+[data-testid="stHeader"] {
+    height: 0 !important;
+}
+
+[data-testid="stExpandSidebarButton"] {
+    pointer-events: auto !important;
+    visibility: visible !important;
+}
+
+[data-testid="stMainBlockContainer"] {
+    padding-top: 0 !important;
+}
 </style>
 """
 
-st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
+# 浅色/白天主题 CSS
+LIGHT_CSS = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap');
 
-# ─────────────────────────────────────────────
-#  Session State Init
-# ─────────────────────────────────────────────
-if 'logged_in' not in st.session_state:
-    st.session_state.logged_in = False
-if 'detection_done' not in st.session_state:
-    st.session_state.detection_done = False
-if 'stop_detection' not in st.session_state:
-    st.session_state.stop_detection = False
-if 'login_error' not in st.session_state:
-    st.session_state.login_error = False
-if 'alert_count' not in st.session_state:
-    st.session_state.alert_count = 0
-if 'frames_processed' not in st.session_state:
-    st.session_state.frames_processed = 0
+/* ── Light Mode Root palette ── */
+:root {
+    --bg-primary:    #ffffff; /* 白色主背景 */
+    --bg-secondary:  #f8f9fa; /* 次级背景 */
+    --bg-card:       #ffffff; /* 卡片背景 */
+    --bg-card2:      #f0f2f6; /* 卡片背景2 */
+    --accent-blue:   #007bff; /* 主色调 */
+    --accent-red:    #dc3545; /* 危险色 */
+    --accent-green:  #28a745; /* 成功色 */
+    --accent-amber:  #ffc107; /* 警告色 */
+    --border:        rgba(0,0,0,0.1); /* 边框 */
+    --border-hot:    rgba(0,123,255,0.5); /* 悬停边框 */
+    --text-primary:  #212529; /* 主要文字 */
+    --text-muted:    #6c757d; /* 次要文字 */
+    --glow-blue:     0 0 8px rgba(0,123,255,0.4); /* 蓝色发光 */
+    --glow-red:      0 0 8px rgba(220,53,69,0.5); /* 红色发光 */
+    --glow-green:    0 0 8px rgba(40,167,69,0.4); /* 绿色发光 */
+}
 
+/* ── App background ── */
+.stApp {
+    background: var(--bg-primary) !important;
+    background-image: none; /* 移除深色主题的渐变背景 */
+}
+
+/* ── Remove animated grid overlay ── */
+.stApp::before {
+    display: none; /* 隐藏深色主题的网格 */
+}
+
+/* ── Sidebar ── */
+[data-testid="stSidebar"] {
+    background: var(--bg-secondary) !important;
+    border-right: 1px solid var(--border) !important;
+    box-shadow: 4px 0 30px rgba(0,0,0,0.05) !important;
+}
+[data-testid="stSidebar"] * {
+    color: var(--text-primary) !important;
+}
+
+/* ── All text ── */
+html, body, [class*="css"] {
+    font-family: 'Rajdhani', sans-serif !important;
+    color: var(--text-primary) !important;
+}
+
+/* ── Main headings ── */
+h1, h2, h3 {
+    font-family: 'Orbitron', monospace !important;
+    letter-spacing: 0.06em !important;
+    color: var(--text-primary); /* 确保标题在浅色背景下可见 */
+}
+
+/* ── Metric cards ── */
+[data-testid="metric-container"] {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+    padding: 16px 20px !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05) !important;
+    transition: box-shadow .3s, border-color .3s !important;
+}
+[data-testid="metric-container"]:hover {
+    border-color: var(--border-hot) !important;
+    box-shadow: var(--glow-blue) !important;
+}
+[data-testid="metric-container"] label {
+    font-family: 'Share Tech Mono', monospace !important;
+    font-size: 0.85rem !important;
+    color: var(--accent-blue) !important; /* 使用主色调 */
+    letter-spacing: 0.1em !important;
+    text-transform: uppercase !important;
+}
+[data-testid="metric-container"] [data-testid="stMetricValue"] {
+    font-family: 'Orbitron', monospace !important;
+    font-size: 1.6rem !important;
+    font-weight: 800 !important;
+    color: var(--text-primary) !important;
+}
+[data-testid="metric-container"] [data-testid="stMetricDelta"] {
+    font-family: 'Share Tech Mono', monospace !important;
+    font-size: 0.75rem !important;
+    color: var(--text-muted) !important; /* 使用次要文字颜色 */
+}
+
+/* ── Buttons ── */
+.stButton > button {
+    background: transparent !important;
+    color: var(--accent-blue) !important;
+    border: 1px solid var(--accent-blue) !important;
+    border-radius: 6px !important;
+    font-family: 'Orbitron', monospace !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.1em !important;
+    text-transform: uppercase !important;
+    padding: 10px 22px !important;
+    transition: all .3s ease !important;
+}
+.stButton > button:hover {
+    background: var(--accent-blue) !important;
+    color: #ffffff !important; /* 文字变为白色 */
+    box-shadow: var(--glow-blue) !important;
+    transform: translateY(-1px) !important;
+}
+
+/* ── Primary action button (start) ── */
+.btn-start > button {
+    background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-blue) 100%) !important;
+    border: 1px solid var(--accent-blue) !important;
+    color: white !important; /* 白色文字 */
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.05) !important;
+}
+.btn-start > button:hover {
+    background: linear-gradient(135deg, #0056b3 0%, #0056b3 100%) !important; /* 深一些的蓝色 */
+    box-shadow: var(--glow-blue) !important;
+}
+
+/* ── Stop button ── */
+.btn-stop > button {
+    border-color: var(--accent-red) !important;
+    color: var(--accent-red) !important;
+}
+.btn-stop > button:hover {
+    background: var(--accent-red) !important;
+    color: #fff !important;
+    box-shadow: var(--glow-red) !important;
+}
+
+/* ── Video container styling ── */
+.video-container {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    height: 100%;
+}
+
+.video-header {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    letter-spacing: 0.14em;
+    margin-bottom: 10px;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+/* ── Dataframe / table ── */
+[data-testid="stDataFrame"] {
+    border: 1px solid var(--border) !important;
+    border-radius: 10px !important;
+    overflow: hidden !important;
+}
+.dataframe {
+    background: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+    font-family: 'Share Tech Mono', monospace !important;
+    font-size: 0.82rem !important;
+}
+
+/* ── Progress bar ── */
+.stProgress > div > div {
+    background: linear-gradient(90deg, var(--accent-blue), #0056b3) !important;
+    box-shadow: 0 0 8px rgba(0,123,255,0.2) !important;
+}
+.stProgress > div {
+    background: rgba(0,123,255,0.1) !important;
+    border-radius: 4px !important;
+}
+
+/* ── Status badge ── */
+.status-badge {
+    display: inline-block;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 3px 12px;
+    border-radius: 20px;
+    border: 1px solid;
+}
+.badge-online  { color: var(--accent-green); border-color: var(--accent-green); background: rgba(40,167,69,0.1); }
+.badge-warning { color: var(--accent-amber); border-color: var(--accent-amber); background: rgba(255,193,7,0.1); }
+.badge-danger  { color: var(--accent-red);   border-color: var(--accent-red);   background: rgba(220,53,69,0.1); }
+
+/* ── Risk level bar ── */
+.risk-bar-wrap {
+    background: rgba(0,0,0,0.05);
+    border-radius: 4px;
+    height: 8px;
+    overflow: hidden;
+    margin-top: 4px;
+}
+.risk-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--accent-green), var(--accent-amber), var(--accent-red));
+}
+
+/* ── Section header ── */
+.section-header {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.95rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent-blue);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+    margin-bottom: 18px;
+}
+.compact-section-header {
+    margin-bottom: 6px !important;
+}
+
+/* ── Sidebar logo ── */
+.sidebar-logo {
+    font-family: 'Orbitron', monospace;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--accent-blue);
+    text-align: center;
+    letter-spacing: 0.06em;
+    padding: 8px 0 16px 0;
+    text-shadow: none; /* 移除深色主题的发光效果 */
+}
+.sidebar-version {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-align: center;
+    letter-spacing: 0.2em;
+    margin-top: -12px;
+    margin-bottom: 20px;
+}
+
+/* ── Page title area ── */
+.page-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 1.45rem;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    color: var(--text-primary);
+    margin: 0;
+}
+.page-title span { color: var(--accent-blue); }
+.page-subtitle {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.9rem;
+    letter-spacing: 0.22em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-top: 4px;
+}
+
+/* ── Login form ── */
+.login-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 48px 56px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1), 0 4px 40px rgba(0,0,0,0.05);
+    max-width: 460px;
+    width: 100%;
+    text-align: center;
+}
+.login-logo {
+    font-family: 'Orbitron', monospace;
+    font-size: 1.8rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    color: var(--accent-blue);
+    text-shadow: none; /* 移除发光效果 */
+    margin-bottom: 4px;
+}
+.login-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent-blue), transparent);
+    margin: 24px 0;
+    opacity: 0.4;
+}
+
+/* ── Logout btn small ── */
+.logout-btn > button {
+    background: transparent !important;
+    border: 1px solid var(--accent-red) !important;
+    color: var(--accent-red) !important;
+    font-size: 0.65rem !important;
+    padding: 6px 14px !important;
+}
+.logout-btn > button:hover {
+    background: var(--accent-red) !important;
+    color: #fff !important;
+}
+/* ── FileUploader 文字颜色调整 ── */
+[data-testid="stFileUploader"] {
+    color: var(--text-primary) !important;
+}
+[data-testid="stFileUploader"] * {
+    color: var(--text-primary) !important;
+}
+[data-testid="stFileUploader"] span {
+    color: var(--accent-blue) !important;   /* 文件名改为蓝色 */
+    font-weight: 600 !important;
+}
+[data-testid="stFileUploader"] small {
+    color: var(--text-muted) !important;
+}
+[data-testid="stFileUploader"] label,
+[data-testid="stFileUploader"] div,
+[data-testid="stFileUploader"] p {
+    color: var(--text-primary) !important;
+}
+
+/* Hide Streamlit native chrome */
+[data-testid="stAppDeployButton"],
+.stAppDeployButton,
+#MainMenu,
+[data-testid="stMainMenu"],
+footer {
+    visibility: hidden !important;
+    display: none !important;
+}
+
+[data-testid="stDecoration"] {
+    display: none !important;
+}
+
+[data-testid="stHeader"],
+[data-testid="stToolbar"] {
+    background: transparent !important;
+    pointer-events: none !important;
+    min-height: 0 !important;
+}
+
+[data-testid="stHeader"] {
+    height: 0 !important;
+}
+
+[data-testid="stExpandSidebarButton"] {
+    pointer-events: auto !important;
+    visibility: visible !important;
+}
+
+[data-testid="stMainBlockContainer"] {
+    padding-top: 0 !important;
+}
+</style>
+"""
+
+
+# 根据当前主题模式返回对应的CSS
+def get_global_css():
+    if st.session_state.theme_mode == 'light':
+        return LIGHT_CSS
+    else:
+        return DARK_CSS
+
+# 应用当前CSS
+st.markdown(get_global_css(), unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
 #  LOGIN PAGE
 # ─────────────────────────────────────────────
 def render_login():
+    user_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "user")
+
+    def is_valid_username(name):
+        if not name or ".." in name:
+            return False
+        invalid_chars = '<>:"/\\|?*'
+        return not any(ch in name for ch in invalid_chars)
+
+    def user_file_path(name):
+        return os.path.join(user_dir, f"{name}.txt")
+
+    def check_user_password(name, pwd):
+        if name == "123" and pwd == "123":
+            return True
+        if not is_valid_username(name):
+            return False
+
+        path = user_file_path(name)
+        if not os.path.exists(path):
+            return False
+
+        try:
+            with open(path, "r") as f:
+                saved_pwd = f.read().strip()
+        except OSError:
+            return False
+        return saved_pwd == pwd
+
     # Center using columns
     _, center, _ = st.columns([1, 1.4, 1])
     with center:
@@ -429,35 +860,70 @@ def render_login():
             <div class="login-divider"></div>
             <div style="font-family:'Share Tech Mono',monospace;font-size:0.68rem;
                         letter-spacing:0.2em;color:#00bfff;text-align:left;
-                        margin-bottom:6px;">用户登录</div>
+                        margin-bottom:6px;">用户认证</div>
         </div>
         """, unsafe_allow_html=True)
 
-        username = st.text_input("账号", placeholder="输入账号", key="login_user",
-                                 label_visibility="collapsed")
+        login_tab, register_tab = st.tabs(["登录", "注册"])
 
-        password = st.text_input("密码", placeholder="输入密码", type="password",
-                                 key="login_pass", label_visibility="collapsed")
+        with login_tab:
+            username = st.text_input("账号", placeholder="输入账号", key="login_user",
+                                     label_visibility="collapsed")
 
-        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            password = st.text_input("密码", placeholder="输入密码", type="password",
+                                     key="login_pass", label_visibility="collapsed")
 
-        if st.button("登录", use_container_width=True):
-            if username == "123" and password == "123":
-                st.session_state.logged_in = True
-                st.session_state.login_error = False
-                st.rerun()
-            else:
-                st.session_state.login_error = True
-                st.rerun()
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
-        if st.session_state.login_error:
-            st.markdown("""
-            <div style="margin-top:12px;font-family:'Share Tech Mono',monospace;
-                        font-size:0.75rem;color:#e8303a;letter-spacing:0.1em;
-                        text-align:center;">
-                访问被拒绝 — 凭证无效
-            </div>
-            """, unsafe_allow_html=True)
+            if st.button("登录", use_container_width=True):
+                if check_user_password(username.strip(), password):
+                    st.session_state.logged_in = True
+                    st.session_state.login_error = False
+                    st.rerun()
+                else:
+                    st.session_state.login_error = True
+                    st.rerun()
+
+            if st.session_state.login_error:
+                st.markdown("""
+                <div style="margin-top:12px;font-family:'Share Tech Mono',monospace;
+                            font-size:0.75rem;color:#e8303a;letter-spacing:0.1em;
+                            text-align:center;">
+                    访问被拒绝 — 凭证无效
+                </div>
+                """, unsafe_allow_html=True)
+
+        with register_tab:
+            reg_username = st.text_input("注册账号", placeholder="输入新账号", key="register_user",
+                                         label_visibility="collapsed")
+            reg_password = st.text_input("注册密码", placeholder="输入密码", type="password",
+                                         key="register_pass", label_visibility="collapsed")
+            reg_confirm = st.text_input("确认密码", placeholder="再次输入密码", type="password",
+                                        key="register_confirm", label_visibility="collapsed")
+
+            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+            if st.button("注册", use_container_width=True):
+                account = reg_username.strip()
+                if not account or not reg_password:
+                    st.error("账号和密码不能为空")
+                elif not is_valid_username(account):
+                    st.error("账号不能包含 /、\\、.. 或 Windows 文件名非法字符")
+                elif reg_password != reg_confirm:
+                    st.error("两次输入的密码不一致")
+                else:
+                    os.makedirs(user_dir, exist_ok=True)
+                    path = user_file_path(account)
+                    if os.path.exists(path):
+                        st.error("账号已存在，请直接登录")
+                    else:
+                        try:
+                            with open(path, "w") as f:
+                                f.write(reg_password)
+                            st.session_state.login_error = False
+                            st.success("注册成功，请切换到登录")
+                        except OSError as exc:
+                            st.error(f"注册失败：{exc}")
 
         st.markdown("""
         <div style="margin-top:28px;font-family:'Share Tech Mono',monospace;
@@ -480,6 +946,14 @@ def render_sidebar():
         """, unsafe_allow_html=True)
 
         st.markdown("---")
+
+        # --- 新增：主题切换按钮 ---
+        if st.button("🔄 切换主题"):
+            if st.session_state.theme_mode == 'dark':
+                st.session_state.theme_mode = 'light'
+            else:
+                st.session_state.theme_mode = 'dark'
+            st.rerun() # 重新运行以应用新主题
 
         # System status
         st.markdown("""
@@ -575,23 +1049,23 @@ def render_metrics(placeholder=None):
     alert_count = str(stats['total_alerts'])
 
     html = """
-    <div style="display: flex; gap: 16px;">
+    <div style="display: flex; gap: 6px;">
         <div style="flex: 1; background: var(--bg-card); border: 1px solid var(--border); 
-                    border-radius: 12px; padding: 20px 24px; text-align: center;
+                    border-radius: 12px; padding: 8px 10px; text-align: center;
                     box-shadow: 0 0 20px rgba(0,191,255,0.06);">
-            <div style="font-family: 'Share Tech Mono', monospace; font-size: 0.9rem; 
+            <div style="font-family: 'Share Tech Mono', monospace; font-size: 0.44rem; 
                         color: #00e5ff; letter-spacing: 0.1em; text-transform: uppercase;
-                        margin-bottom: 8px;">目标追踪数</div>
-            <div style="font-family: 'Orbitron', monospace; font-size: 2.2rem; 
+                        margin-bottom: 3px;">目标追踪数</div>
+            <div style="font-family: 'Orbitron', monospace; font-size: 0.96rem; 
                         font-weight: 800; color: #e8eaf0;">""" + track_count + """</div>
         </div>
         <div style="flex: 1; background: var(--bg-card); border: 1px solid var(--border); 
-                    border-radius: 12px; padding: 20px 24px; text-align: center;
+                    border-radius: 12px; padding: 8px 10px; text-align: center;
                     box-shadow: 0 0 20px rgba(0,191,255,0.06);">
-            <div style="font-family: 'Share Tech Mono', monospace; font-size: 0.9rem; 
+            <div style="font-family: 'Share Tech Mono', monospace; font-size: 0.44rem; 
                         color: #00e5ff; letter-spacing: 0.1em; text-transform: uppercase;
-                        margin-bottom: 8px;">告警次数</div>
-            <div style="font-family: 'Orbitron', monospace; font-size: 2.2rem; 
+                        margin-bottom: 3px;">告警次数</div>
+            <div style="font-family: 'Orbitron', monospace; font-size: 0.96rem; 
                         font-weight: 800; color: #e8eaf0;">""" + alert_count + """</div>
         </div>
     </div>
@@ -634,26 +1108,26 @@ def render_risk_overview(placeholder=None):
 
     risk_html = f"""
     <div style="background: var(--bg-card); border: 1px solid var(--border); 
-                border-radius: 12px; padding: 20px; text-align: center; height: 100%;">
-        <div style="font-family: 'Orbitron', monospace; font-size: 2.8rem; 
+                border-radius: 12px; padding: 8px; text-align: center; height: 100%;">
+        <div style="font-family: 'Orbitron', monospace; font-size: 1.16rem; 
                     font-weight: 900; color: {risk_color};">
             {risk_index:.3f}
         </div>
-        <div style="font-family: 'Share Tech Mono', monospace; font-size: 0.95rem; 
-                    color: #aaddff; margin-top: 6px;">
+        <div style="font-family: 'Share Tech Mono', monospace; font-size: 0.44rem; 
+                    color: #aaddff; margin-top: 2px;">
             风险指数
         </div>
-        <div style="margin-top: 16px; padding: 0 40px;">
+        <div style="margin-top: 6px; padding: 0 16px;">
             <div class="risk-bar-wrap">
                 <div class="risk-bar-fill" style="width: {risk_progress}%;"></div>
             </div>
         </div>
-        <div style="margin-top: 12px; font-family: 'Orbitron', monospace; 
-                    font-size: 1.2rem; color: {risk_color};">
+        <div style="margin-top: 5px; font-family: 'Orbitron', monospace; 
+                    font-size: 0.56rem; color: {risk_color};">
             {risk_text}
         </div>
-        <div style="margin-top: 16px; font-family: 'Share Tech Mono', monospace; 
-                    font-size: 0.88rem; color: #aabbcc;">
+        <div style="margin-top: 6px; font-family: 'Share Tech Mono', monospace; 
+                    font-size: 0.44rem; color: #aabbcc;">
             跟踪目标数: {stats['track_count']}<br>
             平均风险: {avg_risk:.4f}
         </div>
@@ -665,6 +1139,80 @@ def render_risk_overview(placeholder=None):
     else:
         with placeholder:
             st.markdown(risk_html, unsafe_allow_html=True)
+
+
+# ─────────────────────────────────────────────
+#  RISK TREND CHART
+# ─────────────────────────────────────────────
+def render_risk_trend(placeholder=None):
+    from data_store import data_store
+    import altair as alt
+    import pandas as pd
+
+    def _render():
+        trend = data_store.get_risk_trend()
+
+        if not trend:
+            st.markdown(
+                '<div style="background:var(--bg-card);border:1px solid var(--border);'
+                'border-radius:12px;height:168px;display:flex;align-items:center;'
+                'justify-content:center;text-align:center;">'
+                '<span style="font-family:Share Tech Mono,monospace;color:#6b7a99;">'
+                '等待风险趋势数据...</span></div>',
+                unsafe_allow_html=True
+            )
+            return
+
+        df = pd.DataFrame(trend).sort_values("elapsed_second")
+
+        base = alt.Chart(df).encode(
+            x=alt.X(
+                "elapsed_second:Q",
+                title="时间(s)",
+                axis=alt.Axis(format="d", tickMinStep=1)
+            ),
+            y=alt.Y(
+                "risk_score:Q",
+                title="风险大小",
+                scale=alt.Scale(zero=False, nice=True)
+            ),
+            tooltip=[
+                alt.Tooltip("elapsed_second:Q", title="时间(s)", format="d"),
+                alt.Tooltip("risk_score:Q", title="风险大小", format=".3f"),
+                alt.Tooltip("frame_idx:Q", title="帧序号", format="d")
+            ]
+        )
+
+        line = base.mark_line(color="#00bfff", strokeWidth=2, opacity=0.9)
+        points = base.mark_circle(
+            size=46,
+            color="#ffffff",
+            stroke="#ffffff",
+            strokeWidth=1.2,
+            opacity=1.0
+        )
+
+        chart = (line + points).properties(height=154).configure_axis(
+            labelColor="#aabbcc",
+            titleColor="#aaddff",
+            gridColor="#1b3444",
+            domainColor="#26495f",
+            tickColor="#26495f",
+            labelFont="Share Tech Mono",
+            titleFont="Share Tech Mono"
+        ).configure_view(
+            stroke=None
+        ).configure(
+            background="transparent"
+        )
+
+        st.altair_chart(chart, use_container_width=True)
+
+    if placeholder is None:
+        _render()
+    else:
+        with placeholder:
+            _render()
 
 
 # ─────────────────────────────────────────────
@@ -696,58 +1244,69 @@ def render_dashboard():
     # ═══════════════════════════════════════════════════════════════
     # 1. 顶部信息区：左侧检测统计 + 右侧风险概览
     # ═══════════════════════════════════════════════════════════════
-    top_left_col, top_right_col = st.columns([1, 1])
+    top_left_col, top_right_col = st.columns([1, 1], gap="medium")
 
     with top_left_col:
-        st.markdown('<div class="section-header">检测数据统计</div>', unsafe_allow_html=True)
-        metrics_placeholder = st.empty()
-        with metrics_placeholder:
-            render_metrics()
+        with st.container(height=224, border=False):
+            st.markdown('<div class="section-header compact-section-header">检测数据统计</div>', unsafe_allow_html=True)
+            metrics_placeholder = st.empty()
+            with metrics_placeholder:
+                render_metrics()
+
+            st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+
+            st.markdown('<div class="section-header compact-section-header">风险概览</div>', unsafe_allow_html=True)
+            risk_overview_placeholder = st.empty()
+            with risk_overview_placeholder:
+                render_risk_overview()
 
     with top_right_col:
-        st.markdown('<div class="section-header">风险概览</div>', unsafe_allow_html=True)
-        risk_overview_placeholder = st.empty()
-        with risk_overview_placeholder:
-            render_risk_overview()
+        with st.container(height=224, border=False):
+            st.markdown('<div class="section-header">实时风险趋势折线图</div>', unsafe_allow_html=True)
+            risk_trend_placeholder = st.empty()
+            with risk_trend_placeholder:
+                render_risk_trend()
 
     st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
 
     # ═══════════════════════════════════════════════════════════════
     # 2. 中部主显示区：左侧实时画面 + 右侧热力图
     # ═══════════════════════════════════════════════════════════════
-    st.markdown('<div class="section-header">实时画面</div>', unsafe_allow_html=True)
+    bottom_left_col, bottom_right_col = st.columns([1, 1], gap="medium")
 
-    vid_col, risk_col = st.columns([3, 1])
+    with bottom_left_col:
+        with st.container(height=448, border=False):
+            st.markdown('<div class="section-header">实时画面</div>', unsafe_allow_html=True)
+            st.markdown("""
+            <div class="video-container">
+                <div class="video-header">📹 摄像头画面</div>
+            </div>
+            """, unsafe_allow_html=True)
+            video_placeholder = st.empty()
+            video_placeholder.markdown(
+                '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;'
+                'height:320px;display:flex;align-items:center;justify-content:center;text-align:center;">'
+                '<span style="font-family:Share Tech Mono,monospace;color:#6b7a99;">等待视频源...</span>'
+                '</div>',
+                unsafe_allow_html=True
+            )
 
-    with vid_col:
-        st.markdown("""
-        <div class="video-container">
-            <div class="video-header">📹 摄像头画面</div>
-        </div>
-        """, unsafe_allow_html=True)
-        video_placeholder = st.empty()
-        video_placeholder.markdown(
-            '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;'
-            'padding:40px;text-align:center;">'
-            '<span style="font-family:Share Tech Mono,monospace;color:#6b7a99;">等待视频源...</span>'
-            '</div>',
-            unsafe_allow_html=True
-        )
-
-    with risk_col:
-        st.markdown("""
-        <div class="video-container">
-            <div class="video-header">🔥 风险热力图</div>
-        </div>
-        """, unsafe_allow_html=True)
-        risk_placeholder = st.empty()
-        risk_placeholder.markdown(
-            '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;'
-            'padding:40px;text-align:center;">'
-            '<span style="font-family:Share Tech Mono,monospace;color:#99aabb;">等待风险数据...</span>'
-            '</div>',
-            unsafe_allow_html=True
-        )
+    with bottom_right_col:
+        with st.container(height=448, border=False):
+            st.markdown('<div class="section-header">风险热力图</div>', unsafe_allow_html=True)
+            st.markdown("""
+            <div class="video-container">
+                <div class="video-header">🔥 风险热力图</div>
+            </div>
+            """, unsafe_allow_html=True)
+            risk_placeholder = st.empty()
+            risk_placeholder.markdown(
+                '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;'
+                'height:320px;display:flex;align-items:center;justify-content:center;text-align:center;">'
+                '<span style="font-family:Share Tech Mono,monospace;color:#99aabb;">等待风险数据...</span>'
+                '</div>',
+                unsafe_allow_html=True
+            )
 
     st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
 
@@ -782,6 +1341,10 @@ def render_dashboard():
 
         detect_3d.opt.source = source
         detect_3d.opt.view_img = False
+        video_fps = None
+
+        from data_store import data_store
+        data_store.reset()
 
         progress_bar = st.sidebar.progress(0)
         status_text = st.sidebar.empty()
@@ -805,13 +1368,24 @@ def render_dashboard():
 
             if risk_sources is not None:
                 alert_triggered = any(src.get('scf', 0) > 510 for src in risk_sources)
-                data_store.update_frame(frame_idx if frame_idx is not None else 0, risk_sources, alert_triggered)
+                elapsed_second = None
+                if frame_idx is not None and video_fps is not None:
+                    elapsed_second = frame_idx / video_fps
+
+                data_store.update_frame(
+                    frame_idx if frame_idx is not None else 0,
+                    risk_sources,
+                    alert_triggered,
+                    elapsed_second=elapsed_second
+                )
 
                 # 更新所有占位符
                 with metrics_placeholder:
                     render_metrics()
                 with risk_overview_placeholder:
                     render_risk_overview()
+                with risk_trend_placeholder:
+                    render_risk_trend()
                 with realtime_placeholder:
                     render_realtime_panel()
 
@@ -830,7 +1404,12 @@ def render_dashboard():
             if source_option != "摄像头":
                 cap = cv2.VideoCapture(source)
                 total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                video_fps = cap.get(cv2.CAP_PROP_FPS)
                 cap.release()
+                if total_frames <= 0:
+                    total_frames = None
+                if not video_fps or not np.isfinite(video_fps) or video_fps <= 0:
+                    video_fps = None
             else:
                 total_frames = None
 
